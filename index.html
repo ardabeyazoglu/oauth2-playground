@@ -1,0 +1,1300 @@
+<!--
+This is OAuth2.1 playground for testing oauth2.1 flows.
+It uses bootstrap css for styling, alpine.js for client side logic, reactive state management.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth 2.1 Playground</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Alpine.js (Added defer) -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    <!-- JSONEditor -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/10.1.0/jsoneditor.min.css" rel="stylesheet" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/10.1.0/jsoneditor.min.js"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinning {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        .code-block {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            cursor: pointer;
+        }
+
+        .json-key {
+            color: #d63384;
+        }
+
+        .json-string {
+            color: #198754;
+        }
+
+        .json-number {
+            color: #0d6efd;
+        }
+
+        /* JSONEditor Customization */
+        .jsoneditor {
+            border: 1px solid #dee2e6 !important;
+        }
+
+        #requestEditor {
+            height: 200px;
+
+            .jsoneditor-mode-code .jsoneditor-menu {
+                display: none;
+                /* Hide toolbar for request body */
+            }
+        }
+
+        .editor-disabled {
+            pointer-events: none;
+            opacity: 0.6;
+            filter: grayscale(0.5);
+            background-color: #e9ecef;
+        }
+
+        #responseEditor .jsoneditor-mode-code .jsoneditor-menu {
+            display: flex;
+            /* Show toolbar for response */
+        }
+
+        #accessTokenClaims .jsoneditor-mode-code .jsoneditor-menu,
+        #idTokenClaims .jsoneditor-mode-code .jsoneditor-menu {
+            display: flex;
+            /* Show toolbar for claims */
+        }
+    </style>
+</head>
+
+<body class="bg-light" x-data="oauthApp()" x-init="initApp()">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-shield-lock-fill me-2"></i>OAuth 2.1 Playground
+            </a>
+            <div class="d-flex">
+                <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#configSidebar">
+                    <i class="bi bi-gear-fill me-1"></i> Configuration
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Configuration Sidebar -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="configSidebar" aria-labelledby="configSidebarLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="configSidebarLabel">Client Configuration</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form @submit.prevent="saveConfig">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Endpoints</label>
+                    <input type="url" class="form-control mb-2" x-model="config.base_url" placeholder="API Base URL (e.g., https://api.example.com)" required>
+                    <input type="url" class="form-control mb-2" x-model="config.auth_url" placeholder="Authorization URL" required>
+                    <input type="url" class="form-control mb-2" x-model="config.token_url" placeholder="Token URL" required>
+                    <input type="url" class="form-control mb-2" x-model="config.device_auth_url" placeholder="Device Authorization URL" required>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Client Settings</label>
+                    <input type="text" class="form-control mb-2" x-model="config.client_id" placeholder="Client ID" required>
+                    <input type="password" class="form-control mb-2" x-model="config.client_secret" placeholder="Client Secret">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Redirect URI</label>
+                    <input type="url" class="form-control" x-model="config.redirect_uri" placeholder="https://..." required>
+                    <div class="d-grid mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="setSelfRedirect()">Use
+                            Current Page URL</button>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success">Save & Persist</button>
+                    <button type="button" class="btn btn-outline-warning" @click="clearSession">Clear Current Session</button>
+                    <button type="button" class="btn btn-outline-danger" @click="resetConfig">Reset to Defaults</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container-fluid py-4">
+        <div class="row g-2">
+            <!-- Left Column: Inputs (Auth Flows + API Tester) -->
+            <div class="col-lg-6">
+
+                <!-- Auth Flows (Compact) -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white pt-1 pb-2">
+                        <ul class="nav nav-tabs card-header-tabs nav-fill">
+                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'pkce' }" @click="activeTab = 'pkce'">Auth Code</a>
+                            </li>
+                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'refreshToken' }" @click="activeTab = 'refreshToken'">Refresh
+                                    Token</a></li>
+                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'clientCredentials' }" @click="activeTab = 'clientCredentials'">Client Credentials</a>
+                            </li>
+                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'clientAssertion' }" @click="activeTab = 'clientAssertion'">Client
+                                    Assertion</a></li>
+                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'deviceCode' }" @click="activeTab = 'deviceCode'">Device Code</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body p-2">
+                        <!-- PKCE -->
+                        <div x-show="activeTab === 'pkce'">
+                            <p class="small text-muted mb-2">
+                                <span class="text-dark fw-bold">💡 User-delegated authorization:</span> Obtain user consent for requested scopes and receive an access token that acts on their behalf
+                                with limited permissions.<br>
+                                <span class="text-dark fw-bold">💡 Why PKCE matters:</span> Without PKCE, malicious apps on the same device can intercept your authorization code during redirect.
+                                PKCE binds the code to your app using a cryptographic challenge, making interception useless. Even if your client_secret leaks, PKCE protects the token exchange.
+                                PKCE is mandatory to be compliant with OAuth 2.1 spec.
+                            </p>
+                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
+                                <label class="form-label small fw-bold mb-1">Scopes</label>
+                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.pkce"></textarea>
+                            </div>
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">Verifier</span>
+                                <input type="text" class="form-control font-monospace" readonly x-model="pkce.verifier">
+                                <button class="btn btn-outline-secondary" @click="generatePkce()"><i class="bi bi-arrow-repeat"></i></button>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-primary" @click="startAuthCodePkceFlow()" :disabled="!isConfigValid">Authorize with PKCE</button>
+                                <button class="btn btn-xs btn-secondary" style="font-size: 0.75rem;" @click="startAuthCodeFlow()" :disabled="!isConfigValid">Authorize
+                                    without PKCE (less secure, deprecated)</button>
+                            </div>
+                            <div class="mt-2" x-show="params.code">
+                                <div class="alert alert-info py-1 px-2 mb-0 small d-flex justify-content-between align-items-center">
+                                    <span class="text-truncate me-2" style="max-width: 150px;">Code: <span x-text="params.code"></span></span>
+                                    <div>
+                                        <button class="btn btn-xs btn-outline-dark me-1" style="font-size: 0.7rem;" @click="copyToClipboard(params.code)">Copy</button>
+                                        <button class="btn btn-xs btn-dark" style="font-size: 0.7rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Device Code -->
+                        <div x-show="activeTab === 'deviceCode'" x-transition x-cloak>
+                            <p class="small text-muted mb-2">
+                                <span class="text-dark fw-bold">💡 Perfect for input-constrained devices:</span> Smart TVs, IoT devices, CLI tools - anything where typing credentials is painful.
+                                User authenticates on their phone/computer while the device polls for completion.
+                            </p>
+                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
+                                <label class="form-label small fw-bold mb-1">Scopes</label>
+                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.deviceCode"></textarea>
+                            </div>
+                            <div class="d-grid gap-2 mb-2">
+                                <button class="btn btn-sm btn-primary" @click="startDeviceCodeFlow()" :disabled="!isConfigValid || loading">Request Device Code</button>
+                            </div>
+                            <div class="mt-2" x-show="deviceCode.user_code">
+                                <div class="alert alert-warning py-2 px-3 mb-2">
+                                    <div class="fw-bold mb-2">👉 Complete authorization on another device:</div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Verification URL:</small>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <code class="flex-grow-1" x-text="deviceCode.verification_uri"></code>
+                                            <button class="btn btn-xs btn-outline-dark" @click="copyToClipboard(deviceCode.verification_uri)">Copy</button>
+                                            <a :href="deviceCode.verification_uri" target="_blank" class="btn btn-xs btn-dark">Open</a>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted d-block">Enter this code:</small>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <code class="fs-4 fw-bold text-primary flex-grow-1" x-text="deviceCode.user_code"></code>
+                                            <button class="btn btn-xs btn-outline-primary" @click="copyToClipboard(deviceCode.user_code)">Copy</button>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <span x-show="deviceCode.polling">
+                                                <i class="bi bi-arrow-repeat spinning"></i> Polling every <span x-text="deviceCode.interval || 5"></span>s...
+                                            </span>
+                                            <span x-show="!deviceCode.polling && deviceCode.expires_in">
+                                                Expires in <span x-text="deviceCode.expires_in"></span>s
+                                            </span>
+                                        </small>
+                                        <button class="btn btn-xs btn-outline-danger" @click="cancelDeviceCodePolling()">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Refresh -->
+                        <div x-show="activeTab === 'refreshToken'" x-transition x-cloak>
+                            <p class="small text-muted mb-2">
+                                <span class="text-dark fw-bold">💡 Silent token renewal:</span> Refresh tokens let you get new access tokens without user interaction - critical for long-running
+                                sessions.
+                                <span class="text-danger">⚠️</span> They're high-value targets: store securely, rotate them (one-time use pattern), and never send in URLs.
+                                Some providers only issue them with <code>offline_access</code> scope. If refresh fails, re-authenticate the user - don't retry infinitely.
+                            </p>
+                            <div class="input-group input-group-sm mb-2">
+                                <input type="text" class="form-control" x-model="tokens.refresh_token" placeholder="Refresh Token...">
+                                <button class="btn btn-warning" @click="doRefreshToken()" :disabled="!tokens.refresh_token || loading">Refresh</button>
+                            </div>
+                        </div>
+
+                        <!-- Client Creds -->
+                        <div x-show="activeTab === 'clientCredentials'" x-transition x-cloak>
+                            <p class="small text-muted mb-2">
+                                <span class="text-dark fw-bold">💡 Service-to-service authentication:</span> No users involved - your backend service is both client and resource owner.
+                                Tokens represent the app's identity, not a user's. <span class="text-danger">⚠️</span> Never use in frontend code (exposes secret).
+                                No refresh tokens issued - just request new ones when expired.
+                            </p>
+                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
+                                <label class="form-label small fw-bold mb-1">Scopes</label>
+                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.clientCredentials"></textarea>
+                            </div>
+                            <div class="d-grid">
+                                <button class="btn btn-sm btn-primary" @click="doClientCredentials()" :disabled="!config.client_secret || loading">Get Token via Client
+                                    Credentials</button>
+                            </div>
+                        </div>
+
+                        <!-- Assertion -->
+                        <div x-show="activeTab === 'clientAssertion'" x-transition x-cloak>
+                            <p class="small text-muted mb-2">
+                                <span class="text-dark fw-bold">💡 Asymmetric authentication:</span> Replaces shared secrets with public-key cryptography. Your private key and client secret never transmit through network. This is a more conservative
+                                alternative to client_credentials flow.
+                            </p>
+                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
+                                <label class="form-label small fw-bold mb-1">Scopes</label>
+                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.clientAssertion"></textarea>
+                            </div>
+                            <!-- Assertion Generation -->
+                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
+                                <label class="form-label small fw-bold mb-2">Build Client Assertion (signed JWT)</label>
+                                <div class="mb-2">
+                                    <label class="small text-muted" style="font-size: 0.7rem;">Private Key (PKCS8 Base64)</label>
+                                    <textarea class="form-control form-control-sm font-monospace" style="font-size: 0.7rem;" rows="3" x-model="clientKeys.private"
+                                        placeholder="Paste your Ed25519 private key (downloaded from the web app) here..."></textarea>
+                                </div>
+                                <div class="d-grid">
+                                    <button class="btn btn-sm btn-outline-primary" @click="generateAssertionToken()" :disabled="!clientKeys.private">
+                                        <i class="bi bi-gear-wide-connected me-1"></i>Generate Signed JWT
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold mb-1">Generated Assertion</label>
+                                <textarea class="form-control font-monospace small bg-light" rows="2" x-model="customAssertion" readonly placeholder="Click Generate..."></textarea>
+                            </div>
+                            <div class="d-grid">
+                                <button class="btn btn-sm btn-primary" @click="doClientAssertion()" :disabled="!customAssertion || loading">Exchange Assertion</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Tester -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <small class="fw-bold text-success"><i class="bi bi-hdd-network me-1"></i>API Request</small>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="input-group input-group-sm mb-2">
+                            <select class="form-select" style="max-width: 90px;" x-model="api.method">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                            </select>
+                            <input type="text" class="form-control" x-model="api.url">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted mb-1">Request Body (JSON)</label>
+                            <div :class="{ 'editor-disabled': api.method === 'GET' }">
+                                <div id="requestEditor" style="height: 200px;"></div>
+                            </div>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button class="btn btn-sm btn-success" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">Send Request</button>
+                        </div>
+                        <div class="form-text text-danger small mt-1" x-show="!tokens.access_token">Requires Access
+                            Token.</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Outputs -->
+            <div class="col-lg-6">
+
+                <!-- Collapsible Active Session -->
+                <div class="card shadow-sm mb-3 border-success" x-show="tokens.access_token" x-transition x-cloak>
+                    <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center cursor-pointer" @click="sessionExpanded = !sessionExpanded" role="button">
+                        <small class="fw-bold"><i class="bi bi-key-fill me-2"></i>Active Session</small>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-white text-success me-2" x-show="tokens.expires_in">
+                                <span x-show="remainingTime !== null" class="opacity-75" x-text="remainingTime + 's / '"></span>
+                                <span x-text="tokens.expires_in + 's'"></span>
+                            </span>
+                            <button class="btn btn-xs btn-outline-light me-2 py-0" style="font-size: 0.75rem;" @click.stop="clearSession()">Logout</button>
+                            <i class="bi" :class="sessionExpanded ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                        </div>
+                    </div>
+                    <div class="card-body p-3" x-show="sessionExpanded" x-transition>
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text">Access Token</span>
+                            <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly>
+                            <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)">Copy</button>
+                        </div>
+                        <div class="input-group input-group-sm mb-2" x-show="tokens.refresh_token">
+                            <span class="input-group-text">Refresh Token</span>
+                            <input type="text" class="form-control font-monospace" :value="tokens.refresh_token" readonly>
+                        </div>
+                        <div class="mt-3" x-show="decodeJwt(tokens.access_token)">
+                            <div class="small fw-bold text-muted mb-1">Access Token Claims (Decoded JWT)</div>
+                            <div id="accessTokenClaims" style="height: 200px;"></div>
+                        </div>
+
+                        <div class="mt-3" x-show="tokens.id_token">
+                            <div class="small fw-bold text-muted mb-1">ID Token Claims</div>
+                            <div id="idTokenClaims" style="height: 200px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unified Response Log -->
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+                        <small class="fw-bold"><i class="bi bi-terminal me-2"></i>Response Log</small>
+                        <button class="btn btn-xs btn-outline-light py-0" style="font-size: 0.75rem;" @click="clearLogs()">Clear</button>
+                    </div>
+                    <div class="card-body bg-light p-0 position-relative" style="min-height: 300px;">
+                        <div x-show="!logs" class="text-center text-muted p-5 position-absolute top-50 start-50 translate-middle">
+                            <i class="bi bi-activity display-6"></i>
+                            <p class="small mt-2">Ready...</p>
+                        </div>
+                        <div x-show="logs" class="p-3">
+                            <div class="mb-2">
+                                <span class="badge" :class="logs?.status >= 200 && logs?.status < 300 ? 'bg-success' : 'bg-danger'" x-text="logs?.status"></span>
+                                <span class="fw-bold ms-2 small" x-text="logs?.statusText"></span>
+                            </div>
+                            <div id="responseEditor" style="height: 500px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function oauthApp() {
+            return {
+                activeTab: 'pkce',
+                loading: false,
+                isConfigValid: false,
+                customAssertion: '',
+
+                // Config with defaults
+                config: {
+                    base_url: 'https://api.example.com',
+                    auth_url: '',
+                    token_url: '',
+                    device_auth_url: '',
+                    client_id: '<CLIENT_ID>',
+                    client_secret: '<CLIENT_SECRET>',
+                    redirect_uri: window.location.href.split('?')[0]
+                },
+
+                // Scopes per flow
+                flowScopes: {
+                    pkce: 'profile offline_access openid custom_scope1 custom_scope2',
+                    deviceCode: 'profile offline_access custom_scope1 custom_scope2',
+                    clientCredentials: ' custom_scope1 custom_scope2',
+                    clientAssertion: ' custom_scope1 custom_scope2'
+                },
+
+                // Current Session
+                tokens: {
+                    access_token: '',
+                    refresh_token: '',
+                    id_token: '',
+                    expires_in: null,
+                    scope: '',
+                    expires_at: null
+                },
+
+                // Client Keys - NOT PERSISTED for security
+                clientKeys: {
+                    private: ''
+                },
+
+                // PKCE State
+                pkce: {
+                    verifier: '',
+                    challenge: ''
+                },
+
+                // Device Code State
+                deviceCode: {
+                    device_code: '',
+                    user_code: '',
+                    verification_uri: '',
+                    verification_uri_complete: '',
+                    expires_in: null,
+                    interval: 5,
+                    polling: false,
+                    pollTimer: null
+                },
+
+                // URL Params from redirect
+                params: {},
+
+                // API Test State
+                api: {
+                    method: 'GET',
+                    url: '',
+                    body: '{\n  "key": "value"\n}'
+                },
+
+                // Logs
+                logs: null,
+                sessionExpanded: true,
+                reqEditor: null,
+                resEditor: null,
+                accClaimsEditor: null,
+                idClaimsEditor: null,
+                remainingTime: null,
+                expiryTimer: null,
+
+                initApp() {
+                    const containerReq = document.getElementById('requestEditor');
+                    const containerRes = document.getElementById('responseEditor');
+                    const containerAcc = document.getElementById('accessTokenClaims');
+                    const containerId = document.getElementById('idTokenClaims');
+
+                    if (containerReq) {
+                        this.reqEditor = new JSONEditor(containerReq, {
+                            mode: 'code',
+                            mainMenuBar: false,
+                            onChangeText: (jsonString) => {
+                                this.api.body = jsonString;
+                            }
+                        });
+                        try {
+                            this.reqEditor.set(JSON.parse(this.api.body));
+                        } catch (e) {
+                            this.reqEditor.setText(this.api.body);
+                        }
+                    }
+
+                    this.loadConfig();
+                    this.updateEndpointsFromBase();
+                    if (this.tokens.expires_at) this.startExpiryTimer();
+                    this.checkRedirect();
+                    if (!this.pkce.verifier) this.generatePkce();
+
+                    // Watch for api method to enable/disable editor
+                    this.$watch('api.method', (val) => {
+                        // Removed failing updateOptions call. Handled via CSS Class.
+                    });
+
+                    // Watch for tokens to update claims
+                    this.$watch('tokens.access_token', (val) => {
+                        this.$nextTick(() => {
+                            this.initClaimsEditors();
+                            if (this.accClaimsEditor) {
+                                const decoded = this.decodeJwt(val);
+                                if (decoded) this.accClaimsEditor.set(decoded);
+                            }
+                        });
+                    });
+
+                    this.$watch('tokens.id_token', (val) => {
+                        this.$nextTick(() => {
+                            this.initClaimsEditors();
+                            if (this.idClaimsEditor) {
+                                const decoded = this.decodeJwt(val);
+                                if (decoded) this.idClaimsEditor.set(decoded);
+                            }
+                        });
+                    });
+
+                    // Initial check
+                    this.$nextTick(() => {
+                        this.initClaimsEditors();
+                    });
+
+                    // Watch for config changes to save
+                    this.$watch('config', (val) => {
+                        localStorage.setItem('oauth_playground_config', JSON.stringify(val));
+                        this.validateConfig();
+                    });
+
+                    // Watch for base_url changes to update endpoints
+                    this.$watch('config.base_url', (val) => {
+                        this.updateEndpointsFromBase();
+                    });
+
+                    this.validateConfig();
+
+                    // Watch for active tab changes
+                    this.$watch('activeTab', (val) => {
+                        localStorage.setItem('oauth_playground_active_tab', val);
+                    });
+                },
+
+                // --- Configuration Logic ---
+                saveConfig() {
+                    const bsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('configSidebar'));
+                    if (bsOffcanvas) bsOffcanvas.hide();
+                    this.validateConfig();
+                },
+
+                loadConfig() {
+                    const stored = localStorage.getItem('oauth_playground_config');
+                    if (stored) {
+                        this.config = JSON.parse(stored);
+                    }
+                    const storedTokens = sessionStorage.getItem('oauth_tokens');
+                    if (storedTokens) {
+                        const parsed = JSON.parse(storedTokens);
+                        // Migration for legacy sessions: start timer now if missing
+                        if (parsed.expires_in && !parsed.expires_at) {
+                            parsed.expires_at = Date.now() + (parsed.expires_in * 1000);
+                        }
+                        this.tokens = parsed;
+                    }
+                    const storedTab = localStorage.getItem('oauth_playground_active_tab');
+                    if (storedTab) {
+                        this.activeTab = storedTab;
+                    }
+                },
+
+                updateEndpointsFromBase() {
+                    if (this.config.base_url) {
+                        const base = this.config.base_url.replace(/\/$/, ''); // Remove trailing slash
+                        if (!this.config.auth_url || this.config.auth_url.includes('<API_URL>')) {
+                            this.config.auth_url = `${base}/oauth2/authorize`;
+                        }
+                        if (!this.config.token_url || this.config.token_url.includes('<API_URL>')) {
+                            this.config.token_url = `${base}/oauth2/token`;
+                        }
+                        if (!this.config.device_auth_url || this.config.device_auth_url.includes('<API_URL>')) {
+                            this.config.device_auth_url = `${base}/oauth2/device/code`;
+                        }
+                        if (!this.api.url || this.api.url.includes('<API_URL>')) {
+                            this.api.url = `${base}/users/me`;
+                        }
+                    }
+                },
+
+                resetConfig() {
+                    localStorage.removeItem('oauth_playground_config');
+                    window.location.reload();
+                },
+
+                validateConfig() {
+                    this.isConfigValid = !!(this.config.auth_url && this.config.client_id && this.config.redirect_uri);
+                },
+
+                setSelfRedirect() {
+                    this.config.redirect_uri = window.location.href.split('?')[0];
+                },
+
+                // --- PKCE & Crypto Helpers ---
+                async generatePkce() {
+                    // Generate random verifier
+                    const array = new Uint32Array(32);
+                    window.crypto.getRandomValues(array);
+                    this.pkce.verifier = this.base64UrlEncode(array);
+
+                    // Generate challenge (SHA-256)
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(this.pkce.verifier);
+                    const hash = await window.crypto.subtle.digest('SHA-256', data);
+                    this.pkce.challenge = this.base64UrlEncode(new Uint8Array(hash));
+
+                    // Persist verifier for after redirect
+                    sessionStorage.setItem('pkce_verifier', this.pkce.verifier);
+                },
+
+                base64UrlEncode(buffer) {
+                    let str = '';
+                    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer.buffer);
+                    const len = bytes.byteLength;
+                    for (let i = 0; i < len; i++) {
+                        str += String.fromCharCode(bytes[i]);
+                    }
+                    return btoa(str)
+                        .replace(/\+/g, '-')
+                        .replace(/\//g, '_')
+                        .replace(/=+$/, '');
+                },
+
+                ab2b64(buffer) {
+                    let binary = '';
+                    const bytes = new Uint8Array(buffer);
+                    const len = bytes.byteLength;
+                    for (let i = 0; i < len; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    return window.btoa(binary);
+                },
+
+                b642ab(base64) {
+                    const binary_string = window.atob(base64);
+                    const len = binary_string.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binary_string.charCodeAt(i);
+                    }
+                    return bytes.buffer;
+                },
+
+
+                async generateAssertionToken() {
+                    if (!this.clientKeys.private) return;
+                    try {
+                        // Import private key
+                        const privKey = await window.crypto.subtle.importKey(
+                            "pkcs8",
+                            this.b642ab(this.clientKeys.private),
+                            { name: "Ed25519" },
+                            false,
+                            ["sign"]
+                        );
+
+                        const header = { alg: "EdDSA", typ: "JWT" };
+                        const now = Math.floor(Date.now() / 1000);
+                        // Audience must be issuer url (origin)
+                        let aud = this.config.token_url;
+                        try {
+                            aud = new URL(this.config.token_url).origin;
+                        } catch (e) { }
+
+                        const payload = {
+                            iss: this.config.client_id,
+                            sub: this.config.client_id,
+                            aud: aud,
+                            jti: Math.random().toString(36).substring(2),
+                            iat: now,
+                            exp: now + 60
+                        };
+
+                        const textEncoder = new TextEncoder();
+                        const encHeader = this.base64UrlEncode(textEncoder.encode(JSON.stringify(header)));
+                        const encPayload = this.base64UrlEncode(textEncoder.encode(JSON.stringify(payload)));
+
+                        const data = textEncoder.encode(encHeader + "." + encPayload);
+                        const signature = await window.crypto.subtle.sign(
+                            { name: "Ed25519" },
+                            privKey,
+                            data
+                        );
+
+                        this.customAssertion = encHeader + "." + encPayload + "." + this.base64UrlEncode(new Uint8Array(signature));
+                    } catch (e) {
+                        console.error("Error signing JWT", e);
+                        alert("Error signing JWT: " + e.message);
+                    }
+                },
+
+                // --- Auth Flows ---
+
+                startAuthCodePkceFlow() {
+                    sessionStorage.removeItem('oauth_legacy_flow');
+                    const params = new URLSearchParams({
+                        response_type: 'code',
+                        client_id: this.config.client_id,
+                        redirect_uri: this.config.redirect_uri,
+                        scope: this.flowScopes.pkce,
+                        code_challenge: this.pkce.challenge,
+                        code_challenge_method: 'S256',
+                        state: Math.random().toString(36).substring(7)
+                    });
+                    window.location.href = `${this.config.auth_url}?${params.toString()}`;
+                },
+
+                startAuthCodeFlow() {
+                    sessionStorage.setItem('oauth_legacy_flow', 'true');
+                    const params = new URLSearchParams({
+                        response_type: 'code',
+                        client_id: this.config.client_id,
+                        redirect_uri: this.config.redirect_uri,
+                        scope: this.flowScopes.pkce,
+                        state: Math.random().toString(36).substring(7)
+                    });
+                    window.location.href = `${this.config.auth_url}?${params.toString()}`;
+                },
+
+                async startDeviceCodeFlow() {
+                    this.loading = true;
+                    try {
+                        const body = new URLSearchParams({
+                            client_id: this.config.client_id,
+                            scope: this.flowScopes.deviceCode
+                        });
+
+                        const response = await fetch(this.config.device_auth_url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: body
+                        });
+
+                        const data = await response.json();
+
+                        this.logs = {
+                            status: response.status,
+                            statusText: response.statusText,
+                            body: data
+                        };
+
+                        this.$nextTick(() => {
+                            this.initResponseEditor();
+                            if (this.resEditor) {
+                                this.resEditor.set(data);
+                            }
+                        });
+
+                        if (response.ok) {
+                            this.deviceCode = {
+                                device_code: data.device_code,
+                                user_code: data.user_code,
+                                verification_uri: data.verification_uri,
+                                verification_uri_complete: data.verification_uri_complete || data.verification_uri,
+                                expires_in: data.expires_in,
+                                interval: data.interval || 5,
+                                polling: true,
+                                pollTimer: null
+                            };
+                            this.startDeviceCodePolling();
+                        }
+                    } catch (error) {
+                        this.logs = {
+                            status: 0,
+                            statusText: 'Network Error',
+                            body: `<span class="text-danger">${error.message}</span>`
+                        };
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                startDeviceCodePolling() {
+                    if (this.deviceCode.pollTimer) {
+                        clearInterval(this.deviceCode.pollTimer);
+                    }
+
+                    const poll = async () => {
+                        try {
+                            const body = new URLSearchParams({
+                                grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+                                device_code: this.deviceCode.device_code,
+                                client_id: this.config.client_id
+                            });
+
+                            if (this.config.client_secret) {
+                                body.append('client_secret', this.config.client_secret);
+                            }
+
+                            const response = await fetch(this.config.token_url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded'
+                                },
+                                body: body
+                            });
+
+                            const data = await response.json();
+
+                            if (response.ok) {
+                                // Success - we got the token
+                                this.cancelDeviceCodePolling();
+
+                                const newTokens = { ...this.tokens, ...data };
+                                if (data.refresh_token) newTokens.refresh_token = data.refresh_token;
+                                if (data.expires_in) {
+                                    newTokens.expires_at = Date.now() + (data.expires_in * 1000);
+                                }
+
+                                this.tokens = newTokens;
+                                if (this.tokens.expires_at) {
+                                    this.startExpiryTimer();
+                                }
+                                sessionStorage.setItem('oauth_tokens', JSON.stringify(this.tokens));
+
+                                this.logs = {
+                                    status: response.status,
+                                    statusText: 'Device Authorization Complete',
+                                    body: data
+                                };
+
+                                this.$nextTick(() => {
+                                    this.initResponseEditor();
+                                    if (this.resEditor) {
+                                        this.resEditor.set(data);
+                                    }
+                                });
+                            } else if (data.error === 'authorization_pending') {
+                                // Still waiting for user to authorize
+                                // Continue polling
+                            } else if (data.error === 'slow_down') {
+                                // Server asked us to slow down
+                                this.deviceCode.interval += 5;
+                                this.cancelDeviceCodePolling();
+                                this.startDeviceCodePolling();
+                            } else if (data.error === 'expired_token') {
+                                // Device code expired
+                                this.cancelDeviceCodePolling();
+                                this.logs = {
+                                    status: response.status,
+                                    statusText: 'Device Code Expired',
+                                    body: data
+                                };
+                            } else if (data.error === 'access_denied') {
+                                // User denied
+                                this.cancelDeviceCodePolling();
+                                this.logs = {
+                                    status: response.status,
+                                    statusText: 'Access Denied',
+                                    body: data
+                                };
+                            } else {
+                                // Other error
+                                this.cancelDeviceCodePolling();
+                                this.logs = {
+                                    status: response.status,
+                                    statusText: response.statusText,
+                                    body: data
+                                };
+                            }
+                        } catch (error) {
+                            console.error('Polling error:', error);
+                        }
+                    };
+
+                    // Initial poll
+                    poll();
+                    // Set up interval
+                    this.deviceCode.pollTimer = setInterval(poll, this.deviceCode.interval * 1000);
+                },
+
+                cancelDeviceCodePolling() {
+                    if (this.deviceCode.pollTimer) {
+                        clearInterval(this.deviceCode.pollTimer);
+                        this.deviceCode.pollTimer = null;
+                    }
+                    this.deviceCode.polling = false;
+                },
+
+                checkRedirect() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.has('code')) {
+                        // Clear existing tokens to ensure clean state for new code exchange
+                        this.tokens = {
+                            access_token: '',
+                            refresh_token: '',
+                            id_token: '',
+                            expires_in: null,
+                            scope: '',
+                            expires_at: null
+                        };
+                        sessionStorage.removeItem('oauth_tokens');
+
+                        this.params.code = urlParams.get('code');
+                        this.params.state = urlParams.get('state');
+                        this.activeTab = 'pkce';
+
+                        // Restore verifier
+                        const savedVerifier = sessionStorage.getItem('pkce_verifier');
+                        if (savedVerifier) this.pkce.verifier = savedVerifier;
+
+                        // Clean URL without reload
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                    if (urlParams.has('error')) {
+                        this.logs = {
+                            status: 'Error',
+                            statusText: urlParams.get('error'),
+                            body: `<span class="text-danger">${urlParams.get('error_description') || 'OAuth Error'}</span>`
+                        };
+                    }
+                },
+
+                async exchangeCodeForToken() {
+                    const isLegacy = sessionStorage.getItem('oauth_legacy_flow') === 'true';
+                    const body = new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        code: this.params.code,
+                        client_id: this.config.client_id,
+                        redirect_uri: this.config.redirect_uri
+                    });
+
+                    if (!isLegacy) {
+                        body.append('code_verifier', this.pkce.verifier);
+                    }
+
+                    if (this.config.client_secret) {
+                        body.append('client_secret', this.config.client_secret);
+                    }
+
+                    await this.makeTokenRequest(body);
+                },
+
+                async doClientCredentials() {
+                    const body = new URLSearchParams({
+                        grant_type: 'client_credentials',
+                        scope: this.flowScopes.clientCredentials
+                    });
+                    this.addClientAuth(body);
+                    await this.makeTokenRequest(body);
+                },
+
+                async doRefreshToken() {
+                    const body = new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: this.tokens.refresh_token
+                    });
+                    // Refresh often requires client auth depending on server implementation
+                    if (this.config.client_secret) {
+                        this.addClientAuth(body);
+                    } else {
+                        body.append('client_id', this.config.client_id);
+                    }
+                    await this.makeTokenRequest(body);
+                },
+
+                async doClientAssertion() {
+                    const body = new URLSearchParams({
+                        grant_type: 'client_credentials',
+                        scope: this.flowScopes.clientAssertion,
+                        client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                        client_assertion: this.customAssertion
+                    });
+                    await this.makeTokenRequest(body);
+                },
+
+                addClientAuth(params) {
+                    params.append('client_id', this.config.client_id);
+                    params.append('client_secret', this.config.client_secret);
+                },
+
+                async makeTokenRequest(body) {
+                    this.loading = true;
+                    this.logs = null;
+
+                    try {
+                        const response = await fetch(this.config.token_url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: body
+                        });
+
+                        const data = await response.json();
+
+                        this.logs = {
+                            status: response.status,
+                            statusText: response.statusText,
+                            body: data
+                        };
+
+                        this.$nextTick(() => {
+                            this.initResponseEditor();
+                            if (this.resEditor) {
+                                this.resEditor.set(data);
+                            }
+                        });
+
+                        if (response.ok) {
+                            const newTokens = { ...this.tokens, ...data };
+                            if (data.refresh_token) newTokens.refresh_token = data.refresh_token;
+
+                            if (data.expires_in) {
+                                newTokens.expires_at = Date.now() + (data.expires_in * 1000);
+                            }
+
+                            this.tokens = newTokens;
+
+                            if (this.tokens.expires_at) {
+                                this.startExpiryTimer();
+                            }
+
+                            sessionStorage.setItem('oauth_tokens', JSON.stringify(this.tokens));
+                        }
+                    } catch (error) {
+                        this.logs = {
+                            status: 0,
+                            statusText: 'Network Error',
+                            body: `<span class="text-danger">${error.message}. Check CORS settings on server.</span>`
+                        };
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                // --- API Testing ---
+                async sendApiRequest() {
+                    this.loading = true;
+                    this.logs = null;
+
+                    const options = {
+                        method: this.api.method,
+                        headers: {
+                            'Authorization': `Bearer ${this.tokens.access_token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    };
+
+                    if (this.api.method !== 'GET' && this.api.method !== 'DELETE') {
+                        try {
+                            const body = this.reqEditor ? JSON.stringify(this.reqEditor.get()) : this.api.body;
+                            options.body = body;
+                        } catch (e) {
+                            alert("Invalid JSON in request body");
+                            this.loading = false;
+                            return;
+                        }
+                    }
+
+                    try {
+                        const response = await fetch(this.api.url, options);
+
+                        let data;
+                        const contentType = response.headers.get("content-type");
+                        if (contentType && contentType.indexOf("application/json") !== -1) {
+                            data = await response.json();
+                        } else {
+                            data = await response.text();
+                        }
+
+                        this.logs = {
+                            status: response.status,
+                            statusText: response.statusText,
+                            body: data
+                        };
+
+                        this.$nextTick(() => {
+                            this.initResponseEditor();
+                            if (this.resEditor) {
+                                try {
+                                    this.resEditor.set(typeof data === 'string' ? JSON.parse(data) : data);
+                                } catch (e) {
+                                    this.resEditor.setText(data);
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        this.logs = {
+                            status: 0,
+                            statusText: 'Request Failed',
+                            body: error.message
+                        };
+                        this.$nextTick(() => {
+                            this.initResponseEditor();
+                            if (this.resEditor) this.resEditor.setText(error.message);
+                        });
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                initResponseEditor() {
+                    const container = document.getElementById('responseEditor');
+                    if (container && !this.resEditor) {
+                        this.resEditor = new JSONEditor(container, {
+                            mode: 'code',
+                            mainMenuBar: true
+                        });
+                    }
+                },
+
+                initClaimsEditors() {
+                    const containerAcc = document.getElementById('accessTokenClaims');
+                    if (containerAcc && !this.accClaimsEditor) {
+                        this.accClaimsEditor = new JSONEditor(containerAcc, { mode: 'code', mainMenuBar: false });
+                        const decoded = this.decodeJwt(this.tokens.access_token);
+                        if (decoded) this.accClaimsEditor.set(decoded);
+                    }
+
+                    const containerId = document.getElementById('idTokenClaims');
+                    if (containerId && !this.idClaimsEditor) {
+                        this.idClaimsEditor = new JSONEditor(containerId, { mode: 'code', mainMenuBar: false });
+                        const decoded = this.decodeJwt(this.tokens.id_token);
+                        if (decoded) this.idClaimsEditor.set(decoded);
+                    }
+                },
+
+                clearSession() {
+                    this.tokens = {
+                        access_token: '',
+                        refresh_token: '',
+                        id_token: '',
+                        expires_in: null,
+                        scope: '',
+                        expires_at: null
+                    };
+                    if (this.expiryTimer) clearInterval(this.expiryTimer);
+                    this.remainingTime = null;
+                    this.params = {};
+                    this.clientKeys.private = '';
+                    this.customAssertion = '';
+                    this.cancelDeviceCodePolling();
+                    this.deviceCode = {
+                        device_code: '',
+                        user_code: '',
+                        verification_uri: '',
+                        verification_uri_complete: '',
+                        expires_in: null,
+                        interval: 5,
+                        polling: false,
+                        pollTimer: null
+                    };
+                    sessionStorage.removeItem('oauth_tokens');
+                    sessionStorage.removeItem('pkce_verifier');
+                    if (this.accClaimsEditor) this.accClaimsEditor.set({});
+                    if (this.idClaimsEditor) this.idClaimsEditor.set({});
+                },
+
+                startExpiryTimer() {
+                    if (this.expiryTimer) clearInterval(this.expiryTimer);
+
+                    const update = () => {
+                        if (!this.tokens.expires_at) return;
+                        const now = Date.now();
+                        const left = Math.ceil((this.tokens.expires_at - now) / 1000);
+                        this.remainingTime = left > 0 ? left : 0;
+                        if (left <= 0) clearInterval(this.expiryTimer);
+                    };
+
+                    update();
+                    this.expiryTimer = setInterval(update, 1000);
+                },
+
+                decodeJwt(token) {
+                    if (!token || !token.includes('.')) return null;
+                    try {
+                        const base64Url = token.split('.')[1];
+                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                        }).join(''));
+                        return JSON.parse(jsonPayload);
+                    } catch (e) {
+                        return null;
+                    }
+                },
+
+                clearLogs() {
+                    this.logs = null;
+                    if (this.resEditor) {
+                        this.resEditor.set({});
+                    }
+                },
+
+                // --- Utilities ---
+                syntaxHighlight(json) {
+                    if (typeof json != 'string') {
+                        json = JSON.stringify(json, undefined, 2);
+                    }
+                    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                        var cls = 'json-number';
+                        if (/^"/.test(match)) {
+                            if (/:$/.test(match)) {
+                                cls = 'json-key';
+                            } else {
+                                cls = 'json-string';
+                            }
+                        } else if (/true|false/.test(match)) {
+                            cls = 'json-boolean'; // using default text color or specific if needed
+                        } else if (/null/.test(match)) {
+                            cls = 'text-muted';
+                        }
+                        return '<span class="' + cls + '">' + match + '</span>';
+                    });
+                },
+
+                prettyJwt(token) {
+                    if (!token || !token.includes('.')) return '';
+                    try {
+                        const base64Url = token.split('.')[1];
+                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                        }).join(''));
+                        return this.syntaxHighlight(JSON.parse(jsonPayload));
+                    } catch (e) {
+                        return '<span class="text-danger">Invalid JWT</span>';
+                    }
+                },
+
+                copyToClipboard(text) {
+                    // Fallback for iframe environments where navigator.clipboard is blocked
+                    if (!navigator.clipboard) {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        try {
+                            document.execCommand('copy');
+                        } catch (err) {
+                            console.error('Fallback: Oops, unable to copy', err);
+                        }
+                        document.body.removeChild(textArea);
+                        return;
+                    }
+                    navigator.clipboard.writeText(text).catch(err => {
+                        console.error('Async: Could not copy text: ', err);
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,17 @@
+{
+  // editor config
+  "files.eol": "\n",
+  "editor.formatOnSaveMode": "modificationsIfAvailable",
+  "editor.formatOnSave": true,
+  "editor.indentSize": "tabSize",
+  "editor.tabSize": 2,
+  "html.format.wrapLineLength": 250,
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features",
+  },
+  "[markdown]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": "always"
+    }
+  }
+}
