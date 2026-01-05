@@ -610,7 +610,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <option value="Cache-Control">
                                 <option value="Content-Type">
                             </datalist>
-                            </div>
+                        </div>
                         <div class="d-grid mt-4">
                             <button class="btn btn-sm btn-success d-flex align-items-center justify-content-center" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">
                                 <i class="bi bi-send-fill me-2"></i>
@@ -663,7 +663,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 </div>
                             </template>
                         </div>
-                        
+
                         <!-- Error Modal Container (Center) -->
                         <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
                             <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
@@ -681,7 +681,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 </template>
                             </div>
                         </div>
-                        
+
                         <!-- Access Token -->
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
