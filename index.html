@@ -597,20 +597,20 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         <button class="btn btn-outline-danger border-start-0" @click="removeApiHeader(index)"><i class="bi bi-trash small"></i></button>
                                     </div>
                                 </template>
-                                </div>
-                                <div class="d-flex justify-content-end">
-                                    <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
-                                        <i class="bi bi-plus-circle me-1"></i>Add Custom Header
-                                    </button>
-                                </div>
-                                <datalist id="commonHeaders">
-                                    <option value="Accept">
-                                    <option value="Accept-Language">
-                                    <option value="Authorization">
-                                    <option value="Cache-Control">
-                                    <option value="Content-Type">
-                                </datalist>
-                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
+                                    <i class="bi bi-plus-circle me-1"></i>Add Custom Header
+                                </button>
+                            </div>
+                            <datalist id="commonHeaders">
+                                <option value="Accept">
+                                <option value="Accept-Language">
+                                <option value="Authorization">
+                                <option value="Cache-Control">
+                                <option value="Content-Type">
+                            </datalist>
+                            </div>
                         <div class="d-grid mt-4">
                             <button class="btn btn-sm btn-success d-flex align-items-center justify-content-center" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">
                                 <i class="bi bi-send-fill me-2"></i>
@@ -662,37 +662,37 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     </div>
                                 </div>
                             </template>
-                            </div>
-                            
-                            <!-- Error Modal Container (Center) -->
-                            <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
-                                <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
-                                    <template x-for="error in errors" :key="error.id">
-                                        <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
-                                            <div class="d-flex align-items-start">
-                                                <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
-                                                <div class="flex-grow-1">
-                                                    <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
-                                                    <div x-text="error.message" class="small"></div>
-                                                </div>
-                                                <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
+                        </div>
+                        
+                        <!-- Error Modal Container (Center) -->
+                        <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
+                            <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
+                                <template x-for="error in errors" :key="error.id">
+                                    <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
+                                        <div class="d-flex align-items-start">
+                                            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                                            <div class="flex-grow-1">
+                                                <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
+                                                <div x-text="error.message" class="small"></div>
                                             </div>
+                                            <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
                                         </div>
-                                    </template>
-                                </div>
+                                    </div>
+                                </template>
                             </div>
-                            
-                            <!-- Access Token -->
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
-                                <div class="input-group input-group-sm mb-1">
-                                    <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
-                                    <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
-                                    <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
-                                </div>
-                                <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
-                                    <div id="accessTokenClaims" style="height: 200px;"></div>
-                                </div>
+                        </div>
+                        
+                        <!-- Access Token -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
+                            <div class="input-group input-group-sm mb-1">
+                                <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
+                                <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
+                                <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
+                            </div>
+                            <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
+                                <div id="accessTokenClaims" style="height: 200px;"></div>
+                            </div>
                         </div>
 
                         <!-- Refresh Token -->
@@ -1402,13 +1402,19 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         window.history.replaceState({}, document.title, window.location.pathname);
                     }
                     if (urlParams.has('error')) {
+                        const error = urlParams.get('error');
+                        const description = urlParams.get('error_description') || 'OAuth Error';
+                        this.showError(error, description);
+                        
                         this.logs = {
                             status: 'Error',
-                            statusText: urlParams.get('error'),
-                            body: `${urlParams.get('error_description') || 'OAuth Error'}`,
+                            statusText: error,
+                            body: description,
                             headers: {},
                             contentType: ''
                         };
+                        // Clean URL without reload
+                        window.history.replaceState({}, document.title, window.location.pathname);
                     }
                 },
 
