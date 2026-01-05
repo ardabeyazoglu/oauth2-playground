@@ -185,7 +185,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
         <div class="offcanvas-body">
             <form @submit.prevent="saveConfig">
                 <h6 class="mb-3 text-muted border-bottom pb-2">Endpoints</h6>
-                
+
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Discovery URL</label>
                     <div class="col-sm-8">
@@ -219,17 +219,17 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     </div>
                 </div>
                 <div class="mb-2 row align-items-center">
-                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Revocation URL</label>
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Revocation URL <span class="opacity-50 fw-normal italic"></span></label>
                     <div class="col-sm-8">
-                        <input type="url" class="form-control form-control-sm" x-model="config.revocation_url" required placeholder="https://...">
+                        <input type="url" class="form-control form-control-sm" x-model="config.revocation_url" placeholder="Optional. https://...">
                     </div>
                 </div>
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Introspection URL</label>
                     <div class="col-sm-8">
-                        <input type="url" class="form-control form-control-sm" x-model="config.token_introspection_url" placeholder="https://...">
-                    </div>
-                </div>
+                        <input type="url" class="form-control form-control-sm" x-model="config.token_introspection_url" placeholder="Optional. https://...">
+                        </div>
+                        </div>
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Logout URL</label>
                     <div class="col-sm-8">
@@ -241,25 +241,20 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     <div class="col-sm-8">
                         <input type="url" class="form-control form-control-sm" x-model="config.userinfo_url" placeholder="https://...">
                     </div>
-                </div>
-                <div class="mb-2 row align-items-center">
+                    </div>
+                    <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Auth URL</label>
                     <div class="col-sm-8">
-                        <input type="url" class="form-control form-control-sm" x-model="config.device_auth_url" required placeholder="https://...">
+                        <input type="url" class="form-control form-control-sm" x-model="config.device_auth_url" placeholder="Optional. https://...">
                     </div>
                 </div>
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Verify URL</label>
                     <div class="col-sm-8">
-                        <input type="url" class="form-control form-control-sm" x-model="config.device_verify_url" required placeholder="https://...">
+                        <input type="url" class="form-control form-control-sm" x-model="config.device_verify_url" placeholder="Optional. https://...">
                     </div>
                 </div>
-                <div class="mb-2 row align-items-center">
-                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Approve URL</label>
-                    <div class="col-sm-8">
-                        <input type="url" class="form-control form-control-sm" x-model="config.device_approve_url" required placeholder="https://...">
-                    </div>
-                </div>
+
                 <h6 class="my-3 text-muted border-bottom pb-2">Client Credentials</h6>
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Client ID</label>
@@ -275,7 +270,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 </div>
 
                 <h6 class="my-3 text-muted border-bottom pb-2">Redirect URI</h6>
-                
+
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Callback URL</label>
                     <div class="col-sm-8">
@@ -285,7 +280,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="d-grid gap-2 mt-4">
                     <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Configuration</button>
                     <button type="button" class="btn btn-outline-danger" @click="resetConfig"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Defaults</button>
@@ -335,7 +330,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <p class="x-small text-muted mb-3">
                                     PKCE (Proof Key for Code Exchange) prevents authorization code interception attacks. Mandated by OAuth 2.1.
                                 </p>
-                                
+
                                 <div class="input-group input-group-sm mb-3">
                                     <span class="input-group-text x-small">Verifier</span>
                                     <input type="text" class="form-control font-monospace x-small" readonly x-model="pkce.verifier">
@@ -361,33 +356,33 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Method B: Legacy -->
+                            <div class="border rounded p-3 bg-white shadow-sm opacity-75">
+                                <div class="small fw-bold text-muted mb-2 border-bottom pb-1">Method B: Legacy Authorization</div>
+                                <p class="x-small text-muted mb-3">
+                                    Traditional flow without PKCE. Less secure and deprecated in modern implementations.
+                                </p>
+                                <div class="d-grid">
+                                    <button class="btn btn-sm btn-outline-secondary" @click="startAuthCodeFlow()" :disabled="!isConfigValid">
+                                        Start Legacy Flow
+                                    </button>
                                 </div>
-                                
-                                <!-- Method B: Legacy -->
-                                <div class="border rounded p-3 bg-white shadow-sm opacity-75">
-                                    <div class="small fw-bold text-muted mb-2 border-bottom pb-1">Method B: Legacy Authorization</div>
-                                    <p class="x-small text-muted mb-3">
-                                        Traditional flow without PKCE. Less secure and deprecated in modern implementations.
-                                    </p>
-                                    <div class="d-grid">
-                                        <button class="btn btn-sm btn-outline-secondary" @click="startAuthCodeFlow()" :disabled="!isConfigValid">
-                                            Start Legacy Flow
-                                        </button>
-                                    </div>
-                                
-                                    <!-- Result handler for Legacy -->
-                                    <div class="mt-3 overflow-hidden" x-show="params.code && isLegacyFlow">
-                                        <div class="alert alert-success border-success bg-white py-2 px-3 mb-0 shadow-sm">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div class="text-truncate">
-                                                    <small class="fw-bold text-success d-block mb-1">Authorization Code Received!</small>
-                                                    <code class="x-small text-dark" x-text="params.code"></code>
-                                                </div>
-                                                <div class="ms-3 d-flex flex-column gap-1">
-                                                    <button class="btn btn-xs btn-outline-success" style="font-size: 0.65rem;" @click="copyToClipboard(params.code)">Copy</button>
-                                                    <button class="btn btn-xs btn-success" style="font-size: 0.65rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
-                                                </div>
+                            
+                                <!-- Result handler for Legacy -->
+                                <div class="mt-3 overflow-hidden" x-show="params.code && isLegacyFlow">
+                                    <div class="alert alert-success border-success bg-white py-2 px-3 mb-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="text-truncate">
+                                                <small class="fw-bold text-success d-block mb-1">Authorization Code Received!</small>
+                                                <code class="x-small text-dark" x-text="params.code"></code>
                                             </div>
+                                            <div class="ms-3 d-flex flex-column gap-1">
+                                                <button class="btn btn-xs btn-outline-success" style="font-size: 0.65rem;" @click="copyToClipboard(params.code)">Copy</button>
+                                                <button class="btn btn-xs btn-success" style="font-size: 0.65rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
+                                                </div>
+                                                </div>
                                     </div>
                                 </div>
                             </div>
@@ -400,12 +395,19 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 credentials is painful.
                                 User authenticates on their phone/computer while the device polls for completion.
                             </p>
-                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
-                                <label class="form-label small fw-bold mb-1">Scopes</label>
-                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.deviceCode"></textarea>
+                            <div x-show="!config.device_auth_url || !config.device_verify_url" class="alert alert-warning py-2 x-small mb-3">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <strong>Device Flow not configured.</strong> Please provide Device Auth and Verify URLs in the configuration sidebar to use this flow.
                             </div>
-                            <div class="d-grid gap-2 mb-2">
-                                <button class="btn btn-sm btn-primary" @click="startDeviceCodeFlow()" :disabled="!isConfigValid || loading">Request Device Code</button>
+                            
+                            <div x-show="config.device_auth_url && config.device_verify_url">
+                                <div class="mb-2 mt-1 border p-2 rounded bg-white">
+                                    <label class="form-label small fw-bold mb-1">Scopes</label>
+                                    <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.deviceCode"></textarea>
+                                </div>
+                                <div class="d-grid gap-2 mb-2">
+                                    <button class="btn btn-sm btn-primary" @click="startDeviceCodeFlow()" :disabled="!isConfigValid || loading">Request Device Code</button>
+                                </div>
                             </div>
                             <div class="mt-2" x-show="deviceCode.user_code">
                                 <div class="alert alert-warning py-2 px-3 mb-2">
@@ -453,6 +455,22 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         </small>
                                         <button class="btn btn-xs btn-outline-danger" @click="cancelDeviceCodePolling()">Cancel</button>
                                     </div>
+<div class="mt-3 border-top pt-2" x-show="deviceCode.user_code">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="x-small fw-bold text-muted"><i class="bi bi-bug me-1"></i>Debug: Verify Code Status</span>
+        <button class="btn btn-xs btn-outline-primary" style="font-size: 0.65rem;" @click="verifyDeviceCode()">Check API Status</button>
+    </div>
+    <div class="x-small bg-white p-2 rounded border shadow-sm" x-show="deviceCode.verification_data">
+        <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Client ID:</span>
+            <span class="fw-bold text-primary" x-text="deviceCode.verification_data.clientId"></span>
+        </div>
+        <div class="d-flex justify-content-between">
+            <span class="text-muted">Requested Scopes:</span>
+            <span class="fw-bold text-dark" x-text="deviceCode.verification_data.scopes.join(', ')"></span>
+        </div>
+    </div>
+</div>
                                 </div>
                             </div>
                         </div>
@@ -464,7 +482,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                             </p>
                             <div class="border rounded p-3 bg-white shadow-sm">
                                 <div class="small fw-bold text-muted mb-3 border-bottom pb-1"><i class="bi bi-arrow-repeat me-1"></i>Refresh Session</div>
-                            
+
                                 <div class="mb-3">
                                     <label class="x-small text-muted d-block mb-1">Current Refresh Token</label>
                                     <div class="input-group input-group-sm">
@@ -475,14 +493,14 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         <i class="bi bi-exclamation-triangle text-warning me-1"></i>You need a refresh token to use this flow.
                                     </div>
                                 </div>
-                            
+
                                 <div class="d-grid">
                                     <button class="btn btn-sm btn-primary fw-bold" @click="doRefreshToken()" :disabled="!tokens.refresh_token || loading">
                                         <i class="bi bi-lightning-fill me-1"></i>Refresh Tokens
                                     </button>
                                 </div>
                             </div>
-                            
+
                             <div class="mt-3 x-small text-muted bg-light p-2 rounded border border-dashed">
                                 <span class="fw-bold d-block mb-1 text-dark">Security Note:</span>
                                 Refresh tokens are high-value. Most providers implement <strong>One-Time Use</strong> (rotation) by default. Each refresh will invalidate the old
@@ -546,7 +564,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                                 <i class="bi bi-gear-wide-connected me-1"></i>Generate JWT
                                             </button>
                                         </div>
-                                        </div>
+                                    </div>
 
                                     <label class="x-small text-muted d-block mb-1">Private Key (PEM or PKCS8 Base64)</label>
                                     <textarea class="form-control form-control-sm font-monospace" style="font-size: 0.75rem;" rows="3" x-model="clientKeys.private" :placeholder="'Paste your ' + clientKeys.alg + ' private key (PEM or Base64)...'"></textarea>
@@ -555,16 +573,17 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     <label class="form-label x-small fw-bold mb-1">Generated Assertion</label>
                                     <textarea class="form-control font-monospace x-small bg-light" rows="2" x-model="customAssertion" readonly></textarea>
                                 </div>
-<div class="d-grid mt-2">
-    <button class="btn btn-sm btn-primary" @click="doClientAssertion()" :disabled="!customAssertion || loading">
-        Exchange Assertion for Token
-    </button>
+
+                                <div class="d-grid mt-2">
+                                    <button class="btn btn-sm btn-primary" @click="doClientAssertion()" :disabled="!customAssertion || loading">
+                                        Exchange Assertion for Token
+                                    </button>
                                 </div>
-                                </div>
-                                </div>
+                            </div>
+                            </div>
 
                     </div>
-                    </div>
+                </div>
 
                 <!-- API Tester -->
                 <div class="card shadow-sm" @keydown.ctrl.enter="tokens.access_token && sendApiRequest()" @keydown.cmd.enter="tokens.access_token && sendApiRequest()">
@@ -589,30 +608,31 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <div id="requestEditor" style="height: 400px;"></div>
                             </div>
                         </div>
-<!-- Request Headers -->
-<div class="mb-3">
-    <div class="d-flex flex-column gap-1 overflow-auto mb-2" x-show="api.headers.length > 0" style="max-height: 150px;">
-        <template x-for="(header, index) in api.headers" :key="index">
-            <div class="input-group input-group-sm">
-                <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 0 0 30%; min-width: 150px;" placeholder="Header Key" x-model="header.key" list="commonHeaders">
-                <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 1 1 auto;" placeholder="Value" x-model="header.value">
-                <button class="btn btn-outline-danger border-start-0" @click="removeApiHeader(index)"><i class="bi bi-trash small"></i></button>
-            </div>
-        </template>
-    </div>
-    <div class="d-flex justify-content-end">
-        <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
-            <i class="bi bi-plus-circle me-1"></i>Add Custom Header
-        </button>
-    </div>
-    <datalist id="commonHeaders">
-        <option value="Accept">
-        <option value="Accept-Language">
-        <option value="Authorization">
-        <option value="Cache-Control">
-        <option value="Content-Type">
-    </datalist>
-</div>
+
+                        <!-- Request Headers -->
+                        <div class="mb-3">
+                            <div class="d-flex flex-column gap-1 overflow-auto mb-2" x-show="api.headers.length > 0" style="max-height: 150px;">
+                                <template x-for="(header, index) in api.headers" :key="index">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 0 0 30%; min-width: 150px;" placeholder="Header Key" x-model="header.key" list="commonHeaders">
+                                        <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 1 1 auto;" placeholder="Value" x-model="header.value">
+                                        <button class="btn btn-outline-danger border-start-0" @click="removeApiHeader(index)"><i class="bi bi-trash small"></i></button>
+                                        </div>
+                                        </template>
+                                        </div>
+                                        <div class="d-flex justify-content-end">
+                                            <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
+                                                <i class="bi bi-plus-circle me-1"></i>Add Custom Header
+                                            </button>
+                                        </div>
+                                        <datalist id="commonHeaders">
+                                            <option value="Accept">
+                                            <option value="Accept-Language">
+                                            <option value="Authorization">
+                                            <option value="Cache-Control">
+                                            <option value="Content-Type">
+                                        </datalist>
+                                        </div>
                         <div class="d-grid mt-4">
                             <button class="btn btn-sm btn-success d-flex align-items-center justify-content-center" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">
                                 <i class="bi bi-send-fill me-2"></i>
@@ -661,40 +681,40 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                             </div>
                                         </div>
                                         <button type="button" class="btn-close me-2 m-auto" @click="removeToast(toast.id)" aria-label="Close"></button>
-                                        </div>
-                                        </div>
-                                        </template>
-                                        </div>
-                                        
-                                        <!-- Error Modal Container (Center) -->
-                                        <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
-                                            <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
-                                                <template x-for="error in errors" :key="error.id">
-                                                    <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
-                                                        <div class="d-flex align-items-start">
-                                                            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
-                                                            <div class="flex-grow-1">
-                                                                <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
-                                                                <div x-text="error.message" class="small"></div>
-                                                            </div>
-                                                            <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
+                                    </div>
+                                    </div>
+                                    </template>
+                                    </div>
+                                    
+                                    <!-- Error Modal Container (Center) -->
+                                    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
+                                        <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
+                                            <template x-for="error in errors" :key="error.id">
+                                                <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                                                        <div class="flex-grow-1">
+                                                            <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
+                                                            <div x-text="error.message" class="small"></div>
                                                         </div>
+                                                        <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
                                                     </div>
-                                                </template>
-                                            </div>
+                                                </div>
+                                            </template>
                                         </div>
-                                        
-                                        <!-- Access Token -->
-                                        <div class="mb-3">
-                                            <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
-                                            <div class="input-group input-group-sm mb-1">
-                                                <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
-                                                <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
-                                                <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
-                                            </div>
-                                            <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
-                                                <div id="accessTokenClaims" style="height: 200px;"></div>
-                                            </div>
+                                    </div>
+                                    
+                                    <!-- Access Token -->
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
+                                        <div class="input-group input-group-sm mb-1">
+                                            <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
+                                            <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
+                                            <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
+                                        </div>
+                                        <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
+                                            <div id="accessTokenClaims" style="height: 200px;"></div>
+                                        </div>
                         </div>
 
                         <!-- Refresh Token -->
@@ -707,7 +727,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <button class="btn btn-outline-danger" @click="revokeToken(tokens.refresh_token, 'refresh_token')" title="Revoke"><i class="bi bi-trash"></i></button>
                             </div>
                         </div>
-                        
+
                         <!-- ID Token -->
                         <div class="mb-3" x-show="tokens.id_token">
                             <label class="form-label small fw-bold text-muted mb-1">ID Token</label>
@@ -720,7 +740,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <div id="idTokenClaims" style="height: 200px;"></div>
                             </div>
                         </div>
-                        </div>
+                    </div>
                 </div>
 
                 <!-- Unified Response Log -->
@@ -742,13 +762,13 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     <i class="bi bi-clipboard"></i>
                                 </button>
                             </div>
-                            
+
                             <div class="mb-3 d-flex justify-content-between align-items-center bg-white p-2 border rounded shadow-sm">
                                 <div>
                                     <span class="badge" :class="logs?.status >= 200 && logs?.status < 300 ? 'bg-success' : 'bg-danger'" x-text="logs?.status"></span>
                                     <span class="fw-bold ms-2 small text-dark" x-text="logs?.statusText"></span>
                                     <span class="text-muted small ms-2 border-start ps-2" x-show="logs?.contentType" x-text="logs?.contentType"></span>
-                                    </div>
+                                </div>
                                 <ul class="nav nav-pills" style="font-size: 0.7rem;">
                                     <li class="nav-item">
                                         <button class="nav-link py-1 px-3" :class="resTab === 'body' ? 'active bg-primary' : 'text-primary'" @click="resTab = 'body'">
@@ -761,14 +781,14 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         </button>
                                     </li>
                                 </ul>
-                                </div>
-                                
-                                <div x-show="resTab === 'body'">
-                                    <div id="responseEditor" style="height: 650px;"></div>
-                                </div>
-                                <div x-show="resTab === 'headers'" x-cloak>
-                                    <div id="headersEditor" style="height: 650px;"></div>
-                                </div>
+                            </div>
+                            
+                            <div x-show="resTab === 'body'">
+                                <div id="responseEditor" style="height: 650px;"></div>
+                            </div>
+                            <div x-show="resTab === 'headers'" x-cloak>
+                                <div id="headersEditor" style="height: 650px;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -799,7 +819,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     token_introspection_url: '<API_URL>/oauth2/introspect',
                     device_auth_url: '<API_URL>/oauth2/device/authorize',
                     device_verify_url: '<API_URL>/oauth2/device/verify',
-                    device_approve_url: '<API_URL>/oauth2/device/approve',
                     userinfo_url: '<API_URL>/oauth2/userinfo',
                     logout_url: '',
                     client_id: '<CLIENT_ID>',
@@ -840,14 +859,13 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 deviceCode: {
                     device_code: '',
                     user_code: '',
-                    input_user_code: '',
-                    approve_decision: true,
                     verification_uri: '',
                     verification_uri_complete: '', // used for qr codes
                     expires_in: null,
                     interval: 5,
                     polling: false,
-                    pollTimer: null
+                    pollTimer: null,
+                    verification_data: null // store verify result
                 },
 
                 // URL Params from redirect
@@ -1248,8 +1266,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 deviceTimer: null,
                                 checking: false,
                                 error: '',
-                                input_user_code: data.user_code,
-                                approve_decision: true
+                                verification_data: null,
                             };
                             this.startDeviceCodePolling();
 
@@ -1372,8 +1389,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         deviceTimer: null,
                         checking: false,
                         error: '',
-                        input_user_code: '',
-                        approve_decision: true
+                        verification_data: null
                     };
                 },
 
@@ -1462,59 +1478,24 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     await this.makeTokenRequest(body);
                 },
 
-                async verifyAndApproveDevice() {
-                    const userCode = this.deviceCode.input_user_code;
-                    if (!userCode) return;
-
+                async verifyDeviceCode() {
+                    if (!this.deviceCode.user_code) return;
                     this.loading = true;
-
                     try {
-                        // 1. Verify
                         const verifyRes = await fetch(this.config.device_verify_url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ user_code: userCode })
+                            body: JSON.stringify({ user_code: this.deviceCode.user_code })
                         });
 
                         const verifyData = await verifyRes.json();
                         this.updateLogs(verifyRes, verifyData, verifyRes.ok ? 'Device Verified' : 'Verification Failed');
 
-                        if (!verifyRes.ok) {
-                            this.showError('Verification Failed', verifyData.message || verifyData.error);
-                            return;
-                        }
-
-                        // 2. Approve
-                        if (!this.tokens.access_token) {
-                            this.showError('Authentication Required', 'You must be logged in (have an access token) to approve/deny.');
-                            return;
-                        }
-
-                        const approveRes = await fetch(this.config.device_approve_url, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${this.tokens.access_token}`
-                            },
-                            body: JSON.stringify({
-                                user_code: userCode,
-                                approved: this.deviceCode.approve_decision
-                            })
-                        });
-
-                        const approveData = await approveRes.json();
-                        this.updateLogs(approveRes, approveData, approveRes.ok ? 'Device/User Code Processed' : 'Approval Failed');
-
-                        if (approveRes.ok) {
-                            // Clear input if successful
-                            if (this.deviceCode.input_user_code === this.deviceCode.user_code) {
-                                // We approved the current flow, polling should pick it up shortly
-                            }
-                            this.showSuccess('Success', 'Device request processed successfully.');
+                        if (verifyRes.ok) {
+                            this.deviceCode.verification_data = verifyData;
                         } else {
-                            this.showError('Approval Failed', approveData.message || approveData.error);
+                            this.showError('Verification Failed', verifyData.message || verifyData.error);
                         }
-
                     } catch (e) {
                         this.showError("Error", e.message);
                     } finally {
@@ -1523,6 +1504,10 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 },
 
                 async introspectToken(token, typeHint) {
+                    if (!this.config.token_introspection_url) {
+                        this.showError("Not Configured", "Token Introspection URL is not configured.");
+                        return;
+                    }
                     this.loading = true;
                     try {
                         const body = new URLSearchParams({
@@ -1557,6 +1542,10 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 },
 
                 async revokeToken(token, typeHint) {
+                    if (!this.config.revocation_url) {
+                        this.showError("Not Configured", "Revocation URL is not configured.");
+                        return;
+                    }
                     if (!confirm('Are you sure you want to revoke this token?')) return;
                     this.loading = true;
                     try {

@@ -4,7 +4,7 @@ This repository contains a simple OAuth 2.1 playground application that demonstr
 
 Note: It is mostly vibe coded with Gemini 3.
 
-Try out the hosted version at <https://ardabeyazoglu.github.com/oauth2-playground>.
+Try out the hosted version at <https://oauth2-playground.ardabeyazoglu.com>.
 
 ## Running Locally
 
