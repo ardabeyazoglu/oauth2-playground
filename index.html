@@ -1443,7 +1443,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         grant_type: 'client_credentials',
                         scope: this.flowScopes.clientCredentials
                     });
-                    this.addClientAuth(body);
+                    body.append('client_id', this.config.client_id);
+                    body.append('client_secret', this.config.client_secret);
                     await this.makeTokenRequest(body);
                 },
 
@@ -1452,10 +1453,9 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         grant_type: 'refresh_token',
                         refresh_token: this.tokens.refresh_token
                     });
+                    body.append('client_id', this.config.client_id);
                     if (this.isLegacyFlow) {
-                        this.addClientAuth(body);
-                    } else {
-                        body.append('client_id', this.config.client_id);
+                        body.append('client_secret', this.config.client_secret);
                     }
                     await this.makeTokenRequest(body);
                 },
@@ -1471,8 +1471,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     });
                     await this.makeTokenRequest(body);
                 },
-
-
 
                 async introspectToken(token, typeHint) {
                     if (!this.config.token_introspection_url) {
@@ -1634,11 +1632,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     } finally {
                         this.loading = false;
                     }
-                },
-
-                addClientAuth(params) {
-                    params.append('client_id', this.config.client_id);
-                    params.append('client_secret', this.config.client_secret);
                 },
 
                 async makeTokenRequest(body) {
