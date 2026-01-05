@@ -44,8 +44,3 @@ You have multiple options to run a local web server. Here are a few examples:
 ## Contributing
 
 Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
-
-Areas for potential improvements include:
-
-- Enhancing the user interface for better ux.
-- Adding more OAuth 2.1 features to UI (display server metadata, auto discovery etc.).
