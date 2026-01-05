@@ -978,6 +978,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     if (storedTab) {
                         this.activeTab = storedTab;
                     }
+                    this.isLegacyFlow = sessionStorage.getItem('oauth2_authcode_legacy_flow') === 'true';
                     const storedScopes = localStorage.getItem('oauth_playground_flow_scopes');
                     if (storedScopes) {
                         try {
@@ -1297,8 +1298,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 client_id: this.config.client_id
                             });
 
-
-
                             const response = await fetch(this.config.token_url, {
                                 method: 'POST',
                                 headers: {
@@ -1385,7 +1384,22 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                 checkRedirect() {
                     const urlParams = new URLSearchParams(window.location.search);
-                    if (urlParams.has('code')) {
+                    if (urlParams.has('error')) {
+                        const error = urlParams.get('error');
+                        const description = urlParams.get('error_description') || 'OAuth Error';
+                        this.showError(error, description);
+
+                        this.logs = {
+                            status: 'Error',
+                            statusText: error,
+                            body: description,
+                            headers: {},
+                            contentType: ''
+                        };
+                        // Clean URL without reload
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                    else if (urlParams.has('code')) {
                         // Clear existing tokens to ensure clean state for new code exchange
                         this.resetTokens();
 
@@ -1398,21 +1412,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         const savedVerifier = sessionStorage.getItem('pkce_verifier');
                         if (savedVerifier) this.pkce.verifier = savedVerifier;
 
-                        // Clean URL without reload
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }
-                    if (urlParams.has('error')) {
-                        const error = urlParams.get('error');
-                        const description = urlParams.get('error_description') || 'OAuth Error';
-                        this.showError(error, description);
-                        
-                        this.logs = {
-                            status: 'Error',
-                            statusText: error,
-                            body: description,
-                            headers: {},
-                            contentType: ''
-                        };
                         // Clean URL without reload
                         window.history.replaceState({}, document.title, window.location.pathname);
                     }
@@ -1453,8 +1452,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         grant_type: 'refresh_token',
                         refresh_token: this.tokens.refresh_token
                     });
-                    // Refresh often requires client auth depending on server implementation
-                    if (this.config.client_secret) {
+                    if (this.isLegacyFlow) {
                         this.addClientAuth(body);
                     } else {
                         body.append('client_id', this.config.client_id);
