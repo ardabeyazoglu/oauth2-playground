@@ -248,12 +248,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         <input type="url" class="form-control form-control-sm" x-model="config.device_auth_url" placeholder="Optional. https://...">
                     </div>
                 </div>
-                <div class="mb-2 row align-items-center">
-                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Verify URL</label>
-                    <div class="col-sm-8">
-                        <input type="url" class="form-control form-control-sm" x-model="config.device_verify_url" placeholder="Optional. https://...">
-                    </div>
-                </div>
 
                 <h6 class="my-3 text-muted border-bottom pb-2">Client Credentials</h6>
                 <div class="mb-2 row align-items-center">
@@ -369,7 +363,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         Start Legacy Flow
                                     </button>
                                 </div>
-                            
+
                                 <!-- Result handler for Legacy -->
                                 <div class="mt-3 overflow-hidden" x-show="params.code && isLegacyFlow">
                                     <div class="alert alert-success border-success bg-white py-2 px-3 mb-0 shadow-sm">
@@ -395,12 +389,12 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 credentials is painful.
                                 User authenticates on their phone/computer while the device polls for completion.
                             </p>
-                            <div x-show="!config.device_auth_url || !config.device_verify_url" class="alert alert-warning py-2 x-small mb-3">
+                            <div x-show="!config.device_auth_url" class="alert alert-warning py-2 x-small mb-3">
                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <strong>Device Flow not configured.</strong> Please provide Device Auth and Verify URLs in the configuration sidebar to use this flow.
+                                <strong>Device Flow not configured.</strong> Please provide Device Auth URL in the configuration sidebar to use this flow.
                             </div>
                             
-                            <div x-show="config.device_auth_url && config.device_verify_url">
+                            <div x-show="config.device_auth_url">
                                 <div class="mb-2 mt-1 border p-2 rounded bg-white">
                                     <label class="form-label small fw-bold mb-1">Scopes</label>
                                     <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.deviceCode"></textarea>
@@ -455,22 +449,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         </small>
                                         <button class="btn btn-xs btn-outline-danger" @click="cancelDeviceCodePolling()">Cancel</button>
                                     </div>
-<div class="mt-3 border-top pt-2" x-show="deviceCode.user_code">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="x-small fw-bold text-muted"><i class="bi bi-bug me-1"></i>Debug: Verify Code Status</span>
-        <button class="btn btn-xs btn-outline-primary" style="font-size: 0.65rem;" @click="verifyDeviceCode()">Check API Status</button>
-    </div>
-    <div class="x-small bg-white p-2 rounded border shadow-sm" x-show="deviceCode.verification_data">
-        <div class="d-flex justify-content-between mb-1">
-            <span class="text-muted">Client ID:</span>
-            <span class="fw-bold text-primary" x-text="deviceCode.verification_data.clientId"></span>
-        </div>
-        <div class="d-flex justify-content-between">
-            <span class="text-muted">Requested Scopes:</span>
-            <span class="fw-bold text-dark" x-text="deviceCode.verification_data.scopes.join(', ')"></span>
-        </div>
-    </div>
-</div>
                                 </div>
                             </div>
                         </div>
@@ -580,7 +558,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     </button>
                                 </div>
                             </div>
-                            </div>
+                        </div>
 
                     </div>
                 </div>
@@ -617,22 +595,22 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 0 0 30%; min-width: 150px;" placeholder="Header Key" x-model="header.key" list="commonHeaders">
                                         <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 1 1 auto;" placeholder="Value" x-model="header.value">
                                         <button class="btn btn-outline-danger border-start-0" @click="removeApiHeader(index)"><i class="bi bi-trash small"></i></button>
-                                        </div>
-                                        </template>
-                                        </div>
-                                        <div class="d-flex justify-content-end">
-                                            <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
-                                                <i class="bi bi-plus-circle me-1"></i>Add Custom Header
-                                            </button>
-                                        </div>
-                                        <datalist id="commonHeaders">
-                                            <option value="Accept">
-                                            <option value="Accept-Language">
-                                            <option value="Authorization">
-                                            <option value="Cache-Control">
-                                            <option value="Content-Type">
-                                        </datalist>
-                                        </div>
+                                    </div>
+                                    </template>
+                                    </div>
+                                    <div class="d-flex justify-content-end">
+                                        <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
+                                            <i class="bi bi-plus-circle me-1"></i>Add Custom Header
+                                        </button>
+                                    </div>
+                                    <datalist id="commonHeaders">
+                                        <option value="Accept">
+                                        <option value="Accept-Language">
+                                        <option value="Authorization">
+                                        <option value="Cache-Control">
+                                        <option value="Content-Type">
+                                    </datalist>
+                                    </div>
                         <div class="d-grid mt-4">
                             <button class="btn btn-sm btn-success d-flex align-items-center justify-content-center" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">
                                 <i class="bi bi-send-fill me-2"></i>
@@ -682,39 +660,39 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                         </div>
                                         <button type="button" class="btn-close me-2 m-auto" @click="removeToast(toast.id)" aria-label="Close"></button>
                                     </div>
-                                    </div>
-                                    </template>
-                                    </div>
-                                    
-                                    <!-- Error Modal Container (Center) -->
-                                    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
-                                        <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
-                                            <template x-for="error in errors" :key="error.id">
-                                                <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
-                                                    <div class="d-flex align-items-start">
-                                                        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
-                                                        <div class="flex-grow-1">
-                                                            <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
-                                                            <div x-text="error.message" class="small"></div>
-                                                        </div>
-                                                        <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
+                                </div>
+                                </template>
+                                </div>
+                                
+                                <!-- Error Modal Container (Center) -->
+                                <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
+                                    <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
+                                        <template x-for="error in errors" :key="error.id">
+                                            <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
+                                                <div class="d-flex align-items-start">
+                                                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                                                    <div class="flex-grow-1">
+                                                        <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
+                                                        <div x-text="error.message" class="small"></div>
                                                     </div>
+                                                    <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
                                                 </div>
-                                            </template>
-                                        </div>
+                                            </div>
+                                        </template>
                                     </div>
-                                    
-                                    <!-- Access Token -->
-                                    <div class="mb-3">
-                                        <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
-                                        <div class="input-group input-group-sm mb-1">
-                                            <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
-                                            <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
-                                            <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
-                                        </div>
-                                        <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
-                                            <div id="accessTokenClaims" style="height: 200px;"></div>
-                                        </div>
+                                </div>
+                                
+                                <!-- Access Token -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
+                                    <div class="input-group input-group-sm mb-1">
+                                        <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
+                                        <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
+                                        <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
+                                    </div>
+                                    <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
+                                        <div id="accessTokenClaims" style="height: 200px;"></div>
+                                    </div>
                         </div>
 
                         <!-- Refresh Token -->
@@ -782,7 +760,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     </li>
                                 </ul>
                             </div>
-                            
+
                             <div x-show="resTab === 'body'">
                                 <div id="responseEditor" style="height: 650px;"></div>
                             </div>
@@ -818,7 +796,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     revocation_url: '<API_URL>/oauth2/revoke',
                     token_introspection_url: '<API_URL>/oauth2/introspect',
                     device_auth_url: '<API_URL>/oauth2/device/authorize',
-                    device_verify_url: '<API_URL>/oauth2/device/verify',
                     userinfo_url: '<API_URL>/oauth2/userinfo',
                     logout_url: '',
                     client_id: '<CLIENT_ID>',
@@ -828,8 +805,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                 // Scopes per flow
                 flowScopes: {
-                    authCode: 'profile offline_access openid Users.Read.All',
-                    deviceCode: 'profile offline_access Users.Read.All',
+                    authCode: 'openid profile offline_access Users.Read',
+                    deviceCode: 'openid profile offline_access Users.Read',
                     clientCredentials: 'Users.Read.All'
                 },
 
@@ -1305,9 +1282,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 client_id: this.config.client_id
                             });
 
-                            if (this.config.client_secret) {
-                                body.append('client_secret', this.config.client_secret);
-                            }
+
 
                             const response = await fetch(this.config.token_url, {
                                 method: 'POST',
@@ -1478,30 +1453,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     await this.makeTokenRequest(body);
                 },
 
-                async verifyDeviceCode() {
-                    if (!this.deviceCode.user_code) return;
-                    this.loading = true;
-                    try {
-                        const verifyRes = await fetch(this.config.device_verify_url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ user_code: this.deviceCode.user_code })
-                        });
 
-                        const verifyData = await verifyRes.json();
-                        this.updateLogs(verifyRes, verifyData, verifyRes.ok ? 'Device Verified' : 'Verification Failed');
-
-                        if (verifyRes.ok) {
-                            this.deviceCode.verification_data = verifyData;
-                        } else {
-                            this.showError('Verification Failed', verifyData.message || verifyData.error);
-                        }
-                    } catch (e) {
-                        this.showError("Error", e.message);
-                    } finally {
-                        this.loading = false;
-                    }
-                },
 
                 async introspectToken(token, typeHint) {
                     if (!this.config.token_introspection_url) {
