@@ -228,8 +228,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Introspection URL</label>
                     <div class="col-sm-8">
                         <input type="url" class="form-control form-control-sm" x-model="config.token_introspection_url" placeholder="Optional. https://...">
-                        </div>
-                        </div>
+                    </div>
+                </div>
                 <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Logout URL</label>
                     <div class="col-sm-8">
@@ -241,8 +241,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     <div class="col-sm-8">
                         <input type="url" class="form-control form-control-sm" x-model="config.userinfo_url" placeholder="https://...">
                     </div>
-                    </div>
-                    <div class="mb-2 row align-items-center">
+                </div>
+                <div class="mb-2 row align-items-center">
                     <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Auth URL</label>
                     <div class="col-sm-8">
                         <input type="url" class="form-control form-control-sm" x-model="config.device_auth_url" placeholder="Optional. https://...">
@@ -351,7 +351,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Method B: Legacy -->
                             <div class="border rounded p-3 bg-white shadow-sm opacity-75">
                                 <div class="small fw-bold text-muted mb-2 border-bottom pb-1">Method B: Legacy Authorization</div>
@@ -375,8 +375,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                             <div class="ms-3 d-flex flex-column gap-1">
                                                 <button class="btn btn-xs btn-outline-success" style="font-size: 0.65rem;" @click="copyToClipboard(params.code)">Copy</button>
                                                 <button class="btn btn-xs btn-success" style="font-size: 0.65rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
-                                                </div>
-                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -393,7 +393,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                                 <strong>Device Flow not configured.</strong> Please provide Device Auth URL in the configuration sidebar to use this flow.
                             </div>
-                            
+
                             <div x-show="config.device_auth_url">
                                 <div class="mb-2 mt-1 border p-2 rounded bg-white">
                                     <label class="form-label small fw-bold mb-1">Scopes</label>
@@ -445,7 +445,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                                         <span x-show="deviceCode.expires_in <= 0">Code Expired</span>
                                                     </span>
                                                 </template>
-                                                </div>
+                                            </div>
                                         </small>
                                         <button class="btn btn-xs btn-outline-danger" @click="cancelDeviceCodePolling()">Cancel</button>
                                     </div>
@@ -521,7 +521,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     client secret never transmit through the network.
                                 </p>
                                 <div class="mt-2 mb-3 x-small text-muted bg-light p-2 rounded border border-dashed">
-                                    <i class="bi bi-info-circle me-1"></i><strong>Security Note:</strong> Assertions must be <strong>very short-lived</strong> (typically < 5 minutes) and should include a unique <code>jti</code> to prevent replay attacks.
+                                    <i class="bi bi-info-circle me-1"></i><strong>Security Note:</strong> Assertions must be <strong>very short-lived</strong> (typically < 5 minutes) and should include a unique <code>jti</code> to prevent replay
+                                        attacks.
                                 </div>
                                 <div class="mb-3">
                                     <div class="row g-2 mb-2">
@@ -545,8 +546,9 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     </div>
 
                                     <label class="x-small text-muted d-block mb-1">Private Key (PEM or PKCS8 Base64)</label>
-                                    <textarea class="form-control form-control-sm font-monospace" style="font-size: 0.75rem;" rows="3" x-model="clientKeys.private" :placeholder="'Paste your ' + clientKeys.alg + ' private key (PEM or Base64)...'"></textarea>
-                                    </div>
+                                    <textarea class="form-control form-control-sm font-monospace" style="font-size: 0.75rem;" rows="3" x-model="clientKeys.private"
+                                        :placeholder="'Paste your ' + clientKeys.alg + ' private key (PEM or Base64)...'"></textarea>
+                                </div>
                                 <div class="mb-2" x-show="customAssertion">
                                     <label class="form-label x-small fw-bold mb-1">Generated Assertion</label>
                                     <textarea class="form-control font-monospace x-small bg-light" rows="2" x-model="customAssertion" readonly></textarea>
@@ -805,8 +807,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                 // Scopes per flow
                 flowScopes: {
-                    authCode: 'openid profile offline_access Users.Read',
-                    deviceCode: 'openid profile offline_access Users.Read',
+                    authCode: 'openid profile offline_access',
+                    deviceCode: 'openid profile offline_access',
                     clientCredentials: 'Users.Read.All'
                 },
 
