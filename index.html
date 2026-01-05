@@ -73,7 +73,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
         }
 
         #requestEditor {
-            height: 200px;
+            height: 400px;
 
             .jsoneditor-mode-code .jsoneditor-menu {
                 display: none;
@@ -98,10 +98,66 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
             display: flex;
             /* Show toolbar for claims */
         }
+
+        /* Full Page Loader */
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .x-small {
+            font-size: 0.75rem;
+        }
+
+        .border-dashed {
+            border-style: dashed !important;
+        }
+
+        /* Keycap style */
+        kbd {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+            color: inherit;
+            display: inline-block;
+            font-family: inherit;
+            font-size: 0.8em;
+            font-weight: 700;
+            line-height: 1;
+            padding: 2px 5px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
 <body class="bg-light" x-data="oauthApp()" x-init="initApp()">
+
+    <!-- Loading Overlay -->
+    <div class="loader-overlay" x-show="loading" x-transition.opacity x-cloak @keydown.window.escape="loading = false">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="mt-3 text-muted fw-bold small">Processing...</div>
+        <button class="btn btn-sm btn-outline-danger mt-4 d-flex align-items-center" @click="loading = false">
+            <i class="bi bi-x-circle me-2"></i>
+            <span>Cancel / Force Hide</span>
+            <span class="ms-3 opacity-75 d-flex align-items-center" style="font-size: 0.7rem;">
+                <i class="bi bi-keyboard me-1"></i>
+                <kbd class="bg-white text-danger border-danger">Esc</kbd>
+            </span>
+        </button>
+    </div>
 
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
@@ -109,7 +165,10 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
             <a class="navbar-brand" href="#">
                 <i class="bi bi-shield-lock-fill me-2"></i>OAuth 2.1 Playground
             </a>
-            <div class="d-flex">
+            <div class="d-flex align-items-center gap-3">
+                <a href="https://github.com/ardabeyazoglu/oauth2-playground" target="_blank" class="text-light fs-4 border-0 d-flex align-items-center" title="GitHub Repository">
+                    <i class="bi bi-github"></i>
+                </a>
                 <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#configSidebar">
                     <i class="bi bi-gear-fill me-1"></i> Configuration
                 </button>
@@ -118,42 +177,118 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
     </nav>
 
     <!-- Configuration Sidebar -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="configSidebar" aria-labelledby="configSidebarLabel">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="configSidebarLabel">Client Configuration</h5>
+    <div class="offcanvas offcanvas-end" style="width: 600px;" tabindex="-1" id="configSidebar" aria-labelledby="configSidebarLabel">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title" id="configSidebarLabel"><i class="bi bi-gear-fill me-2"></i>Configuration</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
             <form @submit.prevent="saveConfig">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Endpoints</label>
-                    <input type="url" class="form-control mb-2" x-model="config.base_url" placeholder="API Base URL (e.g., https://api.example.com)" required>
-                    <input type="url" class="form-control mb-2" x-model="config.auth_url" placeholder="Authorization URL" required>
-                    <input type="url" class="form-control mb-2" x-model="config.token_url" placeholder="Token URL" required>
-                    <input type="url" class="form-control mb-2" x-model="config.device_auth_url" placeholder="Device Authorization URL" required>
-                </div>
-
-                <hr>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Client Settings</label>
-                    <input type="text" class="form-control mb-2" x-model="config.client_id" placeholder="Client ID" required>
-                    <input type="password" class="form-control mb-2" x-model="config.client_secret" placeholder="Client Secret">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Redirect URI</label>
-                    <input type="url" class="form-control" x-model="config.redirect_uri" placeholder="https://..." required>
-                    <div class="d-grid mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="setSelfRedirect()">Use
-                            Current Page URL</button>
+                <h6 class="mb-3 text-muted border-bottom pb-2">Endpoints</h6>
+                
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Discovery URL</label>
+                    <div class="col-sm-8">
+                        <div class="input-group input-group-sm">
+                            <input type="url" class="form-control" x-model="config.discovery_url" placeholder="https://...">
+                            <button class="btn btn-primary" type="button" @click="discoverEndpoints()" :disabled="!config.discovery_url || loading">
+                                <i class="bi bi-search me-1"></i>Discover
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-success">Save & Persist</button>
-                    <button type="button" class="btn btn-outline-warning" @click="clearSession">Clear Current Session</button>
-                    <button type="button" class="btn btn-outline-danger" @click="resetConfig">Reset to Defaults</button>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">JWKS URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.jwks_url" placeholder="https://...">
+                    </div>
+                </div>
+
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Auth URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.auth_url" required placeholder="https://...">
+                    </div>
+                </div>
+
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Token URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.token_url" required placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Revocation URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.revocation_url" required placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Introspection URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.token_introspection_url" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Logout URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.logout_url" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">UserInfo URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.userinfo_url" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Auth URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.device_auth_url" required placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Verify URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.device_verify_url" required placeholder="https://...">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Device Approve URL</label>
+                    <div class="col-sm-8">
+                        <input type="url" class="form-control form-control-sm" x-model="config.device_approve_url" required placeholder="https://...">
+                    </div>
+                </div>
+                <h6 class="my-3 text-muted border-bottom pb-2">Client Credentials</h6>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Client ID</label>
+                    <div class="col-sm-8">
+                        <input type="text" class="form-control form-control-sm" x-model="config.client_id" required placeholder="client_id">
+                    </div>
+                </div>
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Client Secret</label>
+                    <div class="col-sm-8">
+                        <input type="password" class="form-control form-control-sm" x-model="config.client_secret" placeholder="client_secret">
+                    </div>
+                </div>
+
+                <h6 class="my-3 text-muted border-bottom pb-2">Redirect URI</h6>
+                
+                <div class="mb-2 row align-items-center">
+                    <label class="col-sm-4 col-form-label col-form-label-sm fw-bold">Callback URL</label>
+                    <div class="col-sm-8">
+                        <div class="input-group input-group-sm">
+                            <input type="url" class="form-control" x-model="config.redirect_uri" required placeholder="https://...">
+                            <button type="button" class="btn btn-outline-secondary" @click="setSelfRedirect()" title="Use Current Page URL">Current</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Configuration</button>
+                    <button type="button" class="btn btn-outline-danger" @click="resetConfig"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Defaults</button>
                 </div>
             </form>
         </div>
@@ -169,48 +304,90 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-white pt-1 pb-2">
                         <ul class="nav nav-tabs card-header-tabs nav-fill">
-                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'pkce' }" @click="activeTab = 'pkce'">Auth Code</a>
+                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'authCode' }" @click="activeTab = 'authCode'">Auth Code</a>
                             </li>
                             <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'refreshToken' }" @click="activeTab = 'refreshToken'">Refresh
                                     Token</a></li>
                             <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'clientCredentials' }" @click="activeTab = 'clientCredentials'">Client Credentials</a>
                             </li>
-                            <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'clientAssertion' }" @click="activeTab = 'clientAssertion'">Client
-                                    Assertion</a></li>
                             <li class="nav-item"><a class="nav-link py-1 small" :class="{ 'active': activeTab === 'deviceCode' }" @click="activeTab = 'deviceCode'">Device Code</a>
                             </li>
                         </ul>
                     </div>
                     <div class="card-body p-2">
-                        <!-- PKCE -->
-                        <div x-show="activeTab === 'pkce'">
+                        <!-- Authorization Code Flow -->
+                        <div x-show="activeTab === 'authCode'">
                             <p class="small text-muted mb-2">
-                                <span class="text-dark fw-bold">💡 User-delegated authorization:</span> Obtain user consent for requested scopes and receive an access token that acts on their behalf
-                                with limited permissions.<br>
-                                <span class="text-dark fw-bold">💡 Why PKCE matters:</span> Without PKCE, malicious apps on the same device can intercept your authorization code during redirect.
-                                PKCE binds the code to your app using a cryptographic challenge, making interception useless. Even if your client_secret leaks, PKCE protects the token exchange.
-                                PKCE is mandatory to be compliant with OAuth 2.1 spec.
+                                <span class="text-dark fw-bold">💡 User-delegated authorization:</span> Obtain user consent for requested scopes and receive an access token that
+                                acts on their behalf with limited
+                                permissions.
                             </p>
-                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
-                                <label class="form-label small fw-bold mb-1">Scopes</label>
-                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.pkce"></textarea>
+                            <div class="mb-3 mt-1 border p-2 rounded bg-white shadow-sm">
+                                <label class="form-label small fw-bold mb-1">Requested Scopes</label>
+                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.authCode"></textarea>
                             </div>
-                            <div class="input-group input-group-sm mb-2">
-                                <span class="input-group-text">Verifier</span>
-                                <input type="text" class="form-control font-monospace" readonly x-model="pkce.verifier">
-                                <button class="btn btn-outline-secondary" @click="generatePkce()"><i class="bi bi-arrow-repeat"></i></button>
-                            </div>
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-sm btn-primary" @click="startAuthCodePkceFlow()" :disabled="!isConfigValid">Authorize with PKCE</button>
-                                <button class="btn btn-xs btn-secondary" style="font-size: 0.75rem;" @click="startAuthCodeFlow()" :disabled="!isConfigValid">Authorize
-                                    without PKCE (less secure, deprecated)</button>
-                            </div>
-                            <div class="mt-2" x-show="params.code">
-                                <div class="alert alert-info py-1 px-2 mb-0 small d-flex justify-content-between align-items-center">
-                                    <span class="text-truncate me-2" style="max-width: 150px;">Code: <span x-text="params.code"></span></span>
-                                    <div>
-                                        <button class="btn btn-xs btn-outline-dark me-1" style="font-size: 0.7rem;" @click="copyToClipboard(params.code)">Copy</button>
-                                        <button class="btn btn-xs btn-dark" style="font-size: 0.7rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
+                            <!-- Method A: PKCE -->
+                            <div class="border rounded p-3 mb-3 bg-white shadow-sm border-primary" style="border-width: 2px !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
+                                    <div class="small fw-bold text-primary"><i class="bi bi-shield-check me-1"></i>Method A: Authorize with PKCE</div>
+                                    <span class="badge bg-primary rounded-pill x-small">Recommended</span>
+                                </div>
+                                <p class="x-small text-muted mb-3">
+                                    PKCE (Proof Key for Code Exchange) prevents authorization code interception attacks. Mandated by OAuth 2.1.
+                                </p>
+                                
+                                <div class="input-group input-group-sm mb-3">
+                                    <span class="input-group-text x-small">Verifier</span>
+                                    <input type="text" class="form-control font-monospace x-small" readonly x-model="pkce.verifier">
+                                    <button class="btn btn-outline-secondary" @click="generatePkce()" title="Regenerate Verifier"><i class="bi bi-arrow-repeat"></i></button>
+                                </div>
+                                <div class="d-grid">
+                                    <button class="btn btn-sm btn-primary" @click="startAuthCodePkceFlow()" :disabled="!isConfigValid">
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>Start PKCE Flow
+                                    </button>
+                                </div>
+                                <!-- Result handler for PKCE -->
+                                <div class="mt-3 overflow-hidden" x-show="params.code && !isLegacyFlow">
+                                    <div class="alert alert-success border-success bg-white py-2 px-3 mb-0 shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="text-truncate">
+                                                <small class="fw-bold text-success d-block mb-1">Authorization Code Received!</small>
+                                                <code class="x-small text-dark" x-text="params.code"></code>
+                                            </div>
+                                            <div class="ms-3 d-flex flex-column gap-1">
+                                                <button class="btn btn-xs btn-outline-success" style="font-size: 0.65rem;" @click="copyToClipboard(params.code)">Copy</button>
+                                                <button class="btn btn-xs btn-success" style="font-size: 0.65rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                </div>
+                                
+                                <!-- Method B: Legacy -->
+                                <div class="border rounded p-3 bg-white shadow-sm opacity-75">
+                                    <div class="small fw-bold text-muted mb-2 border-bottom pb-1">Method B: Legacy Authorization</div>
+                                    <p class="x-small text-muted mb-3">
+                                        Traditional flow without PKCE. Less secure and deprecated in modern implementations.
+                                    </p>
+                                    <div class="d-grid">
+                                        <button class="btn btn-sm btn-outline-secondary" @click="startAuthCodeFlow()" :disabled="!isConfigValid">
+                                            Start Legacy Flow
+                                        </button>
+                                    </div>
+                                
+                                    <!-- Result handler for Legacy -->
+                                    <div class="mt-3 overflow-hidden" x-show="params.code && isLegacyFlow">
+                                        <div class="alert alert-success border-success bg-white py-2 px-3 mb-0 shadow-sm">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="text-truncate">
+                                                    <small class="fw-bold text-success d-block mb-1">Authorization Code Received!</small>
+                                                    <code class="x-small text-dark" x-text="params.code"></code>
+                                                </div>
+                                                <div class="ms-3 d-flex flex-column gap-1">
+                                                    <button class="btn btn-xs btn-outline-success" style="font-size: 0.65rem;" @click="copyToClipboard(params.code)">Copy</button>
+                                                    <button class="btn btn-xs btn-success" style="font-size: 0.65rem;" @click="exchangeCodeForToken()" :disabled="loading" x-show="!tokens.access_token">Exchange</button>
+                                                </div>
+                                            </div>
                                     </div>
                                 </div>
                             </div>
@@ -219,7 +396,8 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         <!-- Device Code -->
                         <div x-show="activeTab === 'deviceCode'" x-transition x-cloak>
                             <p class="small text-muted mb-2">
-                                <span class="text-dark fw-bold">💡 Perfect for input-constrained devices:</span> Smart TVs, IoT devices, CLI tools - anything where typing credentials is painful.
+                                <span class="text-dark fw-bold">💡 Perfect for input-constrained devices:</span> Smart TVs, IoT devices, CLI tools - anything where typing
+                                credentials is painful.
                                 User authenticates on their phone/computer while the device polls for completion.
                             </p>
                             <div class="mb-2 mt-1 border p-2 rounded bg-white">
@@ -234,27 +412,44 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                     <div class="fw-bold mb-2">👉 Complete authorization on another device:</div>
                                     <div class="mb-2">
                                         <small class="text-muted d-block">Verification URL:</small>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <code class="flex-grow-1" x-text="deviceCode.verification_uri"></code>
-                                            <button class="btn btn-xs btn-outline-dark" @click="copyToClipboard(deviceCode.verification_uri)">Copy</button>
-                                            <a :href="deviceCode.verification_uri" target="_blank" class="btn btn-xs btn-dark">Open</a>
+                                        <div class="d-flex align-items-center">
+                                            <code class="text-break" x-text="deviceCode.verification_uri"></code>
+                                            <button class="btn btn-link btn-xs text-dark p-0 ms-2" title="Copy URL" @click="copyToClipboard(deviceCode.verification_uri)">
+                                                <i class="bi bi-clipboard"></i>
+                                            </button>
+                                            <a :href="deviceCode.verification_uri" target="_blank" class="btn btn-link btn-xs text-dark p-0 ms-2" title="Open URL">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
                                         </div>
                                     </div>
                                     <div class="mb-2">
                                         <small class="text-muted d-block">Enter this code:</small>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <code class="fs-4 fw-bold text-primary flex-grow-1" x-text="deviceCode.user_code"></code>
-                                            <button class="btn btn-xs btn-outline-primary" @click="copyToClipboard(deviceCode.user_code)">Copy</button>
+                                        <div class="d-flex align-items-center">
+                                            <code class="fs-4 fw-bold text-primary" x-text="deviceCode.user_code"></code>
+                                            <button class="btn btn-link btn-xs text-primary p-0 ms-2" title="Copy Code" @click="copyToClipboard(deviceCode.user_code)">
+                                                <i class="bi bi-clipboard"></i>
+                                            </button>
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <small class="text-muted">
-                                            <span x-show="deviceCode.polling">
-                                                <i class="bi bi-arrow-repeat spinning"></i> Polling every <span x-text="deviceCode.interval || 5"></span>s...
-                                            </span>
-                                            <span x-show="!deviceCode.polling && deviceCode.expires_in">
-                                                Expires in <span x-text="deviceCode.expires_in"></span>s
-                                            </span>
+                                        <small class="x-small">
+                                            <div x-show="deviceCode.polling" class="mb-1">
+                                                <span :class="deviceCode.checking ? 'text-primary' : 'text-muted'">
+                                                    <i class="bi bi-arrow-repeat spinning" x-show="deviceCode.polling && !deviceCode.checking"></i>
+                                                    <i class="bi bi-activity text-primary" x-show="deviceCode.checking"></i>
+                                                    <span x-text="deviceCode.checking ? 'Checking status...' : 'Polling every ' + deviceCode.interval + 's'"></span>
+                                                </span>
+                                            </div>
+                                            <div :class="deviceCode.error || deviceCode.expires_in <= 0 ? 'text-danger fw-bold' : 'text-muted'">
+                                                <i class="bi me-1" :class="deviceCode.error ? 'bi-exclamation-octagon-fill' : 'bi-clock-history'"></i>
+                                                <span x-show="deviceCode.error" x-text="deviceCode.error"></span>
+                                                <template x-if="!deviceCode.error">
+                                                    <span>
+                                                        <span x-show="deviceCode.expires_in > 0">Expires in <span x-text="deviceCode.expires_in"></span>s</span>
+                                                        <span x-show="deviceCode.expires_in <= 0">Code Expired</span>
+                                                    </span>
+                                                </template>
+                                                </div>
                                         </small>
                                         <button class="btn btn-xs btn-outline-danger" @click="cancelDeviceCodePolling()">Cancel</button>
                                     </div>
@@ -262,75 +457,117 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                             </div>
                         </div>
 
-                        <!-- Refresh -->
+                        <!-- Refresh Token Flow -->
                         <div x-show="activeTab === 'refreshToken'" x-transition x-cloak>
                             <p class="small text-muted mb-2">
-                                <span class="text-dark fw-bold">💡 Silent token renewal:</span> Refresh tokens let you get new access tokens without user interaction - critical for long-running
-                                sessions.
-                                <span class="text-danger">⚠️</span> They're high-value targets: store securely, rotate them (one-time use pattern), and never send in URLs.
-                                Some providers only issue them with <code>offline_access</code> scope. If refresh fails, re-authenticate the user - don't retry infinitely.
+                                <span class="text-dark fw-bold">💡 Silent renewal:</span> Get new access tokens without user interaction.
                             </p>
-                            <div class="input-group input-group-sm mb-2">
-                                <input type="text" class="form-control" x-model="tokens.refresh_token" placeholder="Refresh Token...">
-                                <button class="btn btn-warning" @click="doRefreshToken()" :disabled="!tokens.refresh_token || loading">Refresh</button>
+                            <div class="border rounded p-3 bg-white shadow-sm">
+                                <div class="small fw-bold text-muted mb-3 border-bottom pb-1"><i class="bi bi-arrow-repeat me-1"></i>Refresh Session</div>
+                            
+                                <div class="mb-3">
+                                    <label class="x-small text-muted d-block mb-1">Current Refresh Token</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control font-monospace x-small" x-model="tokens.refresh_token" placeholder="No token present...">
+                                        <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.refresh_token)" :disabled="!tokens.refresh_token"><i class="bi bi-clipboard"></i></button>
+                                    </div>
+                                    <div class="form-text x-small mt-1" x-show="!tokens.refresh_token">
+                                        <i class="bi bi-exclamation-triangle text-warning me-1"></i>You need a refresh token to use this flow.
+                                    </div>
+                                </div>
+                            
+                                <div class="d-grid">
+                                    <button class="btn btn-sm btn-primary fw-bold" @click="doRefreshToken()" :disabled="!tokens.refresh_token || loading">
+                                        <i class="bi bi-lightning-fill me-1"></i>Refresh Tokens
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 x-small text-muted bg-light p-2 rounded border border-dashed">
+                                <span class="fw-bold d-block mb-1 text-dark">Security Note:</span>
+                                Refresh tokens are high-value. Most providers implement <strong>One-Time Use</strong> (rotation) by default. Each refresh will invalidate the old
+                                refresh token and issue a new
+                                one.
                             </div>
                         </div>
 
                         <!-- Client Creds -->
                         <div x-show="activeTab === 'clientCredentials'" x-transition x-cloak>
                             <p class="small text-muted mb-2">
-                                <span class="text-dark fw-bold">💡 Service-to-service authentication:</span> No users involved - your backend service is both client and resource owner.
+                                <span class="text-dark fw-bold">💡 Service-to-service authentication:</span> No users involved - your backend service is both client and resource
+                                owner.
                                 Tokens represent the app's identity, not a user's. <span class="text-danger">⚠️</span> Never use in frontend code (exposes secret).
                                 No refresh tokens issued - just request new ones when expired.
                             </p>
-                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
-                                <label class="form-label small fw-bold mb-1">Scopes</label>
+                            <div class="mb-3 mt-1 border p-2 rounded bg-white shadow-sm">
+                                <label class="form-label small fw-bold mb-1">Common Flow Scopes</label>
                                 <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.clientCredentials"></textarea>
                             </div>
-                            <div class="d-grid">
-                                <button class="btn btn-sm btn-primary" @click="doClientCredentials()" :disabled="!config.client_secret || loading">Get Token via Client
-                                    Credentials</button>
-                            </div>
-                        </div>
-
-                        <!-- Assertion -->
-                        <div x-show="activeTab === 'clientAssertion'" x-transition x-cloak>
-                            <p class="small text-muted mb-2">
-                                <span class="text-dark fw-bold">💡 Asymmetric authentication:</span> Replaces shared secrets with public-key cryptography. Your private key and client secret never transmit through network. This is a more conservative
-                                alternative to client_credentials flow.
-                            </p>
-                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
-                                <label class="form-label small fw-bold mb-1">Scopes</label>
-                                <textarea class="form-control form-control-sm" rows="2" x-model="flowScopes.clientAssertion"></textarea>
-                            </div>
-                            <!-- Assertion Generation -->
-                            <div class="mb-2 mt-1 border p-2 rounded bg-white">
-                                <label class="form-label small fw-bold mb-2">Build Client Assertion (signed JWT)</label>
-                                <div class="mb-2">
-                                    <label class="small text-muted" style="font-size: 0.7rem;">Private Key (PKCS8 Base64)</label>
-                                    <textarea class="form-control form-control-sm font-monospace" style="font-size: 0.7rem;" rows="3" x-model="clientKeys.private"
-                                        placeholder="Paste your Ed25519 private key (downloaded from the web app) here..."></textarea>
+                            <!-- Method A: Client Secret -->
+                            <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                                <div class="small fw-bold text-muted mb-2 border-bottom pb-1"><i class="bi bi-key-fill me-1"></i>Method A: Use Client Secret</div>
+                                <div class="d-grid mt-3">
+                                    <button class="btn btn-sm btn-primary" @click="doClientCredentials()" :disabled="!config.client_secret || loading">Get Token via Client
+                                        Credentials</button>
                                 </div>
-                                <div class="d-grid">
-                                    <button class="btn btn-sm btn-outline-primary" @click="generateAssertionToken()" :disabled="!clientKeys.private">
-                                        <i class="bi bi-gear-wide-connected me-1"></i>Generate Signed JWT
-                                    </button>
-                                </div>
+                                <div class="form-text x-small mt-1 text-center" x-show="!config.client_secret"> <i class="bi bi-info-circle me-1"></i>Requires Client Secret in
+                                    Configuration.</div>
                             </div>
 
-                            <div class="mb-2">
-                                <label class="form-label small fw-bold mb-1">Generated Assertion</label>
-                                <textarea class="form-control font-monospace small bg-light" rows="2" x-model="customAssertion" readonly placeholder="Click Generate..."></textarea>
-                            </div>
-                            <div class="d-grid">
-                                <button class="btn btn-sm btn-primary" @click="doClientAssertion()" :disabled="!customAssertion || loading">Exchange Assertion</button>
-                            </div>
-                        </div>
+                            <!-- Method B: Client Assertion -->
+                            <div class="border rounded p-3 bg-white shadow-sm border-primary" style="border-width: 2px !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-1">
+                                    <div class="small fw-bold text-primary"><i class="bi bi-shield-lock-fill me-1"></i>Method B: Client Assertion (Asymmetric)</div>
+                                    <span class="badge bg-primary rounded-pill x-small">Recommended (if supported)</span>
+                                </div>
+                                <p class="x-small text-muted mb-3">
+                                    Replaces shared secrets with public-key cryptography. Your private key and
+                                    client secret never transmit through the network.
+                                </p>
+                                <div class="mt-2 mb-3 x-small text-muted bg-light p-2 rounded border border-dashed">
+                                    <i class="bi bi-info-circle me-1"></i><strong>Security Note:</strong> Assertions must be <strong>very short-lived</strong> (typically < 5 minutes) and should include a unique <code>jti</code> to prevent replay attacks.
+                                </div>
+                                <div class="mb-3">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-sm-3">
+                                            <label class="x-small text-muted d-block mb-1">Algorithm</label>
+                                            <select class="form-select form-select-sm" x-model="clientKeys.alg" style="font-size: 0.75rem;">
+                                                <option value="EdDSA">EdDSA (Ed25519)</option>
+                                                <option value="RS256">RS256 (RSA 256)</option>
+                                                <option value="ES256">ES256 (P-256)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-sm-5">
+                                            <label class="x-small text-muted d-block mb-1">Key ID (kid) <span class="opacity-50 font-italic">- Optional</span></label>
+                                            <input type="text" class="form-control form-control-sm font-monospace" style="font-size: 0.75rem;" x-model="clientKeys.kid" placeholder="e.g. key-fingerprint">
+                                        </div>
+                                        <div class="col-sm-4 text-end align-self-end">
+                                            <button class="btn btn-xs btn-outline-primary" @click="generateAssertionToken()" :disabled="!clientKeys.private">
+                                                <i class="bi bi-gear-wide-connected me-1"></i>Generate JWT
+                                            </button>
+                                        </div>
+                                        </div>
+
+                                    <label class="x-small text-muted d-block mb-1">Private Key (PEM or PKCS8 Base64)</label>
+                                    <textarea class="form-control form-control-sm font-monospace" style="font-size: 0.75rem;" rows="3" x-model="clientKeys.private" :placeholder="'Paste your ' + clientKeys.alg + ' private key (PEM or Base64)...'"></textarea>
+                                    </div>
+                                <div class="mb-2" x-show="customAssertion">
+                                    <label class="form-label x-small fw-bold mb-1">Generated Assertion</label>
+                                    <textarea class="form-control font-monospace x-small bg-light" rows="2" x-model="customAssertion" readonly></textarea>
+                                </div>
+<div class="d-grid mt-2">
+    <button class="btn btn-sm btn-primary" @click="doClientAssertion()" :disabled="!customAssertion || loading">
+        Exchange Assertion for Token
+    </button>
+                                </div>
+                                </div>
+                                </div>
+
                     </div>
-                </div>
+                    </div>
 
                 <!-- API Tester -->
-                <div class="card shadow-sm">
+                <div class="card shadow-sm" @keydown.ctrl.enter="tokens.access_token && sendApiRequest()" @keydown.cmd.enter="tokens.access_token && sendApiRequest()">
                     <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
                         <small class="fw-bold text-success"><i class="bi bi-hdd-network me-1"></i>Send Authorized Requests</small>
                     </div>
@@ -342,20 +579,50 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <option value="PUT">PUT</option>
                                 <option value="PATCH">PATCH</option>
                                 <option value="DELETE">DELETE</option>
+                                <option value="HEAD">HEAD</option>
                             </select>
                             <input type="text" class="form-control" x-model="api.url">
                         </div>
                         <div class="mb-3">
                             <label class="form-label small text-muted mb-1">Request Body (JSON)</label>
-                            <div :class="{ 'editor-disabled': api.method === 'GET' }">
-                                <div id="requestEditor" style="height: 200px;"></div>
+                            <div :class="{ 'editor-disabled': api.method === 'GET' || api.method === 'HEAD' }">
+                                <div id="requestEditor" style="height: 400px;"></div>
                             </div>
                         </div>
+<!-- Request Headers -->
+<div class="mb-3">
+    <div class="d-flex flex-column gap-1 overflow-auto mb-2" x-show="api.headers.length > 0" style="max-height: 150px;">
+        <template x-for="(header, index) in api.headers" :key="index">
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 0 0 30%; min-width: 150px;" placeholder="Header Key" x-model="header.key" list="commonHeaders">
+                <input type="text" class="form-control form-control-xs font-monospace" style="font-size: 0.75rem; flex: 1 1 auto;" placeholder="Value" x-model="header.value">
+                <button class="btn btn-outline-danger border-start-0" @click="removeApiHeader(index)"><i class="bi bi-trash small"></i></button>
+            </div>
+        </template>
+    </div>
+    <div class="d-flex justify-content-end">
+        <button type="button" class="btn btn-xs btn-outline-success d-flex align-items-center" style="font-size: 0.65rem; border-style: dashed;" @click="addApiHeader()">
+            <i class="bi bi-plus-circle me-1"></i>Add Custom Header
+        </button>
+    </div>
+    <datalist id="commonHeaders">
+        <option value="Accept">
+        <option value="Accept-Language">
+        <option value="Authorization">
+        <option value="Cache-Control">
+        <option value="Content-Type">
+    </datalist>
+</div>
                         <div class="d-grid mt-4">
-                            <button class="btn btn-sm btn-success" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">Send Request</button>
+                            <button class="btn btn-sm btn-success d-flex align-items-center justify-content-center" @click="sendApiRequest()" :disabled="!tokens.access_token || loading">
+                                <i class="bi bi-send-fill me-2"></i>
+                                <span>Send Request</span>
+                                <span class="ms-3 opacity-75 d-flex align-items-center" style="font-size: 0.7rem;">
+                                    <i class="bi bi-keyboard me-1"></i>
+                                    <kbd class="bg-white text-success border-success">Ctrl</kbd> + <kbd class="bg-white text-success border-success">Enter</kbd>
+                                </span>
+                            </button>
                         </div>
-                        <div class="form-text text-danger small mt-1" x-show="!tokens.access_token">Requires Access
-                            Token.</div>
                     </div>
                 </div>
 
@@ -373,34 +640,91 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 <span x-show="remainingTime !== null" class="opacity-75" x-text="remainingTime + 's / '"></span>
                                 <span x-text="tokens.expires_in + 's'"></span>
                             </span>
-                            <button class="btn btn-xs btn-outline-light me-2 py-0" style="font-size: 0.75rem;" @click.stop="clearSession()">Logout</button>
+                            <button class="btn btn-xs btn-outline-light me-2 py-0" style="font-size: 0.75rem;" @click.stop="clearSession()">Clear Local Session</button>
+                            <button class="btn btn-xs bg-white text-danger me-2 py-0 fw-bold" style="font-size: 0.75rem;" x-show="config.logout_url && tokens.access_token" @click.stop="doLogout()">
+                                <i class="bi bi-box-arrow-right me-1"></i>Logout
+                            </button>
                             <i class="bi" :class="sessionExpanded ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
                         </div>
                     </div>
                     <div class="card-body p-3" x-show="sessionExpanded" x-transition>
-                        <div class="input-group input-group-sm mb-2">
-                            <span class="input-group-text">Access Token</span>
-                            <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly>
-                            <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)">Copy</button>
-                        </div>
-                        <div class="input-group input-group-sm mb-2" x-show="tokens.refresh_token">
-                            <span class="input-group-text">Refresh Token</span>
-                            <input type="text" class="form-control font-monospace" :value="tokens.refresh_token" readonly>
-                        </div>
-                        <div class="mt-3" x-show="decodeJwt(tokens.access_token)">
-                            <div class="small fw-bold text-muted mb-1">Access Token Claims (Decoded JWT)</div>
-                            <div id="accessTokenClaims" style="height: 200px;"></div>
+                        <!-- Success Toast Container (Top Right) -->
+                        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1090">
+                            <template x-for="toast in toasts" :key="toast.id">
+                                <div class="toast show align-items-center border-success" role="alert" aria-live="assertive" aria-atomic="true">
+                                    <div class="d-flex">
+                                        <div class="toast-body d-flex align-items-center text-success">
+                                            <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                                            <div>
+                                                <strong class="d-block" x-text="toast.title"></strong>
+                                                <span x-text="toast.message"></span>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn-close me-2 m-auto" @click="removeToast(toast.id)" aria-label="Close"></button>
+                                        </div>
+                                        </div>
+                                        </template>
+                                        </div>
+                                        
+                                        <!-- Error Modal Container (Center) -->
+                                        <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="z-index: 2050; pointer-events: none;" x-show="errors.length > 0">
+                                            <div class="d-flex flex-column gap-2" style="max-width: 500px; width: 90%; pointer-events: auto;">
+                                                <template x-for="error in errors" :key="error.id">
+                                                    <div class="alert alert-danger shadow-lg border-danger mb-0" role="alert" x-transition>
+                                                        <div class="d-flex align-items-start">
+                                                            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                                                            <div class="flex-grow-1">
+                                                                <h5 class="alert-heading h6 fw-bold" x-text="error.title"></h5>
+                                                                <div x-text="error.message" class="small"></div>
+                                                            </div>
+                                                            <button type="button" class="btn-close" @click="removeError(error.id)" aria-label="Close"></button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Access Token -->
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold text-muted mb-1">Access Token</label>
+                                            <div class="input-group input-group-sm mb-1">
+                                                <input type="text" class="form-control font-monospace" :value="tokens.access_token" readonly style="font-size: 0.8rem;">
+                                                <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.access_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
+                                                <button class="btn btn-outline-primary" @click="introspectToken(tokens.access_token, 'access_token')" title="Introspect"><i class="bi bi-search"></i></button>
+                                            </div>
+                                            <div class="mt-2" x-show="tokens.access_token && decodeJwt(tokens.access_token)">
+                                                <div id="accessTokenClaims" style="height: 200px;"></div>
+                                            </div>
                         </div>
 
-                        <div class="mt-3" x-show="tokens.id_token">
-                            <div class="small fw-bold text-muted mb-1">ID Token Claims</div>
-                            <div id="idTokenClaims" style="height: 200px;"></div>
+                        <!-- Refresh Token -->
+                        <div class="mb-3" x-show="tokens.refresh_token">
+                            <label class="form-label small fw-bold text-muted mb-1">Refresh Token</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control font-monospace" :value="tokens.refresh_token" readonly style="font-size: 0.8rem;">
+                                <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.refresh_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
+                                <button class="btn btn-outline-primary" @click="introspectToken(tokens.refresh_token, 'refresh_token')" title="Introspect"><i class="bi bi-search"></i></button>
+                                <button class="btn btn-outline-danger" @click="revokeToken(tokens.refresh_token, 'refresh_token')" title="Revoke"><i class="bi bi-trash"></i></button>
+                            </div>
                         </div>
-                    </div>
+                        
+                        <!-- ID Token -->
+                        <div class="mb-3" x-show="tokens.id_token">
+                            <label class="form-label small fw-bold text-muted mb-1">ID Token</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control font-monospace" :value="tokens.id_token" readonly style="font-size: 0.8rem;">
+                                <button class="btn btn-outline-secondary" @click="copyToClipboard(tokens.id_token)" title="Copy"><i class="bi bi-clipboard"></i></button>
+                                <button class="btn btn-outline-primary" @click="verifyIdToken(tokens.id_token)" title="Verify Signature (JWKS)"><i class="bi bi-shield-check"></i></button>
+                            </div>
+                            <div class="mt-2" x-show="decodeJwt(tokens.id_token)">
+                                <div id="idTokenClaims" style="height: 200px;"></div>
+                            </div>
+                        </div>
+                        </div>
                 </div>
 
                 <!-- Unified Response Log -->
-                <div class="card shadow-sm h-100">
+                <div class="card shadow-sm">
                     <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
                         <small class="fw-bold"><i class="bi bi-terminal me-2"></i>Response Log</small>
                         <button class="btn btn-xs btn-outline-light py-0" style="font-size: 0.75rem;" @click="clearLogs()">Clear</button>
@@ -411,11 +735,40 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                             <p class="small mt-2">Ready...</p>
                         </div>
                         <div x-show="logs" class="p-3">
-                            <div class="mb-2">
-                                <span class="badge" :class="logs?.status >= 200 && logs?.status < 300 ? 'bg-success' : 'bg-danger'" x-text="logs?.status"></span>
-                                <span class="fw-bold ms-2 small" x-text="logs?.statusText"></span>
+                            <!-- Requested URL -->
+                            <div class="mb-2 bg-white p-2 border rounded shadow-sm d-flex justify-content-between align-items-center" x-show="logs?.url">
+                                <code class="text-break x-small text-muted" style="font-size: 0.7rem;" x-text="logs?.url"></code>
+                                <button class="btn btn-xs btn-outline-secondary ms-2 flex-shrink-0 py-0" style="font-size: 0.65rem;" @click="copyToClipboard(logs?.url)" title="Copy URL">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
                             </div>
-                            <div id="responseEditor" style="height: 500px;"></div>
+                            
+                            <div class="mb-3 d-flex justify-content-between align-items-center bg-white p-2 border rounded shadow-sm">
+                                <div>
+                                    <span class="badge" :class="logs?.status >= 200 && logs?.status < 300 ? 'bg-success' : 'bg-danger'" x-text="logs?.status"></span>
+                                    <span class="fw-bold ms-2 small text-dark" x-text="logs?.statusText"></span>
+                                    <span class="text-muted small ms-2 border-start ps-2" x-show="logs?.contentType" x-text="logs?.contentType"></span>
+                                    </div>
+                                <ul class="nav nav-pills" style="font-size: 0.7rem;">
+                                    <li class="nav-item">
+                                        <button class="nav-link py-1 px-3" :class="resTab === 'body' ? 'active bg-primary' : 'text-primary'" @click="resTab = 'body'">
+                                            <i class="bi bi-code-slash me-1"></i>Body
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link py-1 px-3" :class="resTab === 'headers' ? 'active bg-primary' : 'text-primary'" @click="resTab = 'headers'">
+                                            <i class="bi bi-list-task me-1"></i>Headers
+                                        </button>
+                                    </li>
+                                </ul>
+                                </div>
+                                
+                                <div x-show="resTab === 'body'">
+                                    <div id="responseEditor" style="height: 650px;"></div>
+                                </div>
+                                <div x-show="resTab === 'headers'" x-cloak>
+                                    <div id="headersEditor" style="height: 650px;"></div>
+                                </div>
                         </div>
                     </div>
                 </div>
@@ -430,17 +783,25 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
     <script>
         function oauthApp() {
             return {
-                activeTab: 'pkce',
+                activeTab: 'authCode',
                 loading: false,
                 isConfigValid: false,
                 customAssertion: '',
+                isLegacyFlow: false,
 
                 // Config with defaults
                 config: {
-                    base_url: 'https://api.example.com',
-                    auth_url: '',
-                    token_url: '',
-                    device_auth_url: '',
+                    discovery_url: '<API_URL>/oauth2/.well-known/openid-configuration',
+                    jwks_url: '<API_URL>/oauth2/.well-known/jwks.json',
+                    auth_url: '<API_URL>/oauth2/authorize',
+                    token_url: '<API_URL>/oauth2/token',
+                    revocation_url: '<API_URL>/oauth2/revoke',
+                    token_introspection_url: '<API_URL>/oauth2/introspect',
+                    device_auth_url: '<API_URL>/oauth2/device/authorize',
+                    device_verify_url: '<API_URL>/oauth2/device/verify',
+                    device_approve_url: '<API_URL>/oauth2/device/approve',
+                    userinfo_url: '<API_URL>/oauth2/userinfo',
+                    logout_url: '',
                     client_id: '<CLIENT_ID>',
                     client_secret: '<CLIENT_SECRET>',
                     redirect_uri: window.location.href.split('?')[0]
@@ -448,10 +809,9 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                 // Scopes per flow
                 flowScopes: {
-                    pkce: 'profile offline_access openid custom_scope1 custom_scope2',
-                    deviceCode: 'profile offline_access custom_scope1 custom_scope2',
-                    clientCredentials: ' custom_scope1 custom_scope2',
-                    clientAssertion: ' custom_scope1 custom_scope2'
+                    authCode: 'profile offline_access openid Users.Read.All',
+                    deviceCode: 'profile offline_access Users.Read.All',
+                    clientCredentials: 'Users.Read.All'
                 },
 
                 // Current Session
@@ -466,7 +826,9 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                 // Client Keys - NOT PERSISTED for security
                 clientKeys: {
-                    private: ''
+                    private: '',
+                    alg: 'EdDSA',
+                    kid: ''
                 },
 
                 // PKCE State
@@ -475,12 +837,13 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     challenge: ''
                 },
 
-                // Device Code State
                 deviceCode: {
                     device_code: '',
                     user_code: '',
+                    input_user_code: '',
+                    approve_decision: true,
                     verification_uri: '',
-                    verification_uri_complete: '',
+                    verification_uri_complete: '', // used for qr codes
                     expires_in: null,
                     interval: 5,
                     polling: false,
@@ -493,15 +856,20 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 // API Test State
                 api: {
                     method: 'GET',
-                    url: '',
-                    body: '{\n  "key": "value"\n}'
+                    url: '<API_URL>',
+                    body: '{\n  "key": "value"\n}',
+                    headers: []
                 },
 
                 // Logs
                 logs: null,
+                resTab: 'body',
+                toasts: [],
+                errors: [],
                 sessionExpanded: true,
                 reqEditor: null,
                 resEditor: null,
+                headersEditor: null,
                 accClaimsEditor: null,
                 idClaimsEditor: null,
                 remainingTime: null,
@@ -529,10 +897,13 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     }
 
                     this.loadConfig();
-                    this.updateEndpointsFromBase();
-                    if (this.tokens.expires_at) this.startExpiryTimer();
+                    if (this.tokens.expires_at) {
+                        this.startExpiryTimer();
+                    }
                     this.checkRedirect();
-                    if (!this.pkce.verifier) this.generatePkce();
+                    if (!this.pkce.verifier) {
+                        this.generatePkce();
+                    }
 
                     // Watch for api method to enable/disable editor
                     this.$watch('api.method', (val) => {
@@ -571,11 +942,6 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         this.validateConfig();
                     });
 
-                    // Watch for base_url changes to update endpoints
-                    this.$watch('config.base_url', (val) => {
-                        this.updateEndpointsFromBase();
-                    });
-
                     this.validateConfig();
 
                     // Watch for active tab changes
@@ -595,6 +961,9 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     const stored = localStorage.getItem('oauth_playground_config');
                     if (stored) {
                         this.config = JSON.parse(stored);
+                        if (this.config.userinfo_url && !this.config.userinfo_url.includes('<API_URL>')) {
+                            this.api.url = this.config.userinfo_url;
+                        }
                     }
                     const storedTokens = sessionStorage.getItem('oauth_tokens');
                     if (storedTokens) {
@@ -611,27 +980,62 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     }
                 },
 
-                updateEndpointsFromBase() {
-                    if (this.config.base_url) {
-                        const base = this.config.base_url.replace(/\/$/, ''); // Remove trailing slash
-                        if (!this.config.auth_url || this.config.auth_url.includes('<API_URL>')) {
-                            this.config.auth_url = `${base}/oauth2/authorize`;
+                async discoverEndpoints() {
+                    if (!this.config.discovery_url) return;
+                    this.loading = true;
+                    try {
+                        const response = await fetch(this.config.discovery_url);
+                        if (!response.ok) throw new Error(`Discovery failed with status ${response.status}`);
+                        const data = await response.json();
+
+                        // Map standard OIDC fields to our config
+                        if (data.authorization_endpoint) this.config.auth_url = data.authorization_endpoint;
+                        if (data.token_endpoint) this.config.token_url = data.token_endpoint;
+                        if (data.jwks_uri) this.config.jwks_url = data.jwks_uri;
+                        if (data.revocation_endpoint) this.config.revocation_url = data.revocation_endpoint;
+                        if (data.token_introspection_url) this.config.token_introspection_url = data.token_introspection_url;
+                        if (data.introspection_endpoint) this.config.token_introspection_url = data.introspection_endpoint;
+                        if (data.device_authorization_endpoint) this.config.device_auth_url = data.device_authorization_endpoint;
+                        if (data.end_session_endpoint) this.config.logout_url = data.end_session_endpoint;
+
+                        // Non-standard but common for device flow verification/approval if separate
+                        // If they aren't in discovery, we keep defaults or let user edit
+
+                        if (data.userinfo_endpoint) {
+                            this.config.userinfo_url = data.userinfo_endpoint;
+                            this.api.url = data.userinfo_endpoint;
+                            this.showSuccess("Auto-Discovery Successful", "Endpoints updated. API Tester URL set to UserInfo endpoint.");
+                        } else {
+                            this.showSuccess("Auto-Discovery Successful", "Discovery endpoints updated.");
                         }
-                        if (!this.config.token_url || this.config.token_url.includes('<API_URL>')) {
-                            this.config.token_url = `${base}/oauth2/token`;
-                        }
-                        if (!this.config.device_auth_url || this.config.device_auth_url.includes('<API_URL>')) {
-                            this.config.device_auth_url = `${base}/oauth2/device/code`;
-                        }
-                        if (!this.api.url || this.api.url.includes('<API_URL>')) {
-                            this.api.url = `${base}/users/me`;
-                        }
+
+                        this.validateConfig();
+                    } catch (error) {
+                        console.error('Discovery Error:', error);
+                        this.showError("Discovery Failed", `Could not fetch configuration: ${error.message}. Please ensure CORS is enabled on the target server.`);
+                    } finally {
+                        this.loading = false;
                     }
                 },
 
                 resetConfig() {
                     localStorage.removeItem('oauth_playground_config');
                     window.location.reload();
+                },
+
+                resetTokens() {
+                    this.tokens = {
+                        access_token: '',
+                        refresh_token: '',
+                        id_token: '',
+                        expires_in: null,
+                        scope: '',
+                        expires_at: null
+                    };
+                    this.params.code = '';
+                    this.isLegacyFlow = false;
+                    sessionStorage.removeItem('oauth_tokens');
+                    sessionStorage.removeItem('oauth2_authcode_legacy_flow');
                 },
 
                 validateConfig() {
@@ -683,7 +1087,10 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 },
 
                 b642ab(base64) {
-                    const binary_string = window.atob(base64);
+                    const cleanBase64 = base64
+                        .replace(/-----(BEGIN|END)[\w\s]+KEY-----/g, '')
+                        .replace(/[\s\r\n]/g, '');
+                    const binary_string = window.atob(cleanBase64);
                     const len = binary_string.length;
                     const bytes = new Uint8Array(len);
                     for (let i = 0; i < len; i++) {
@@ -696,16 +1103,36 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 async generateAssertionToken() {
                     if (!this.clientKeys.private) return;
                     try {
+                        let importParams;
+                        let signParams;
+                        const jwtAlg = this.clientKeys.alg;
+
+                        if (jwtAlg === 'EdDSA') {
+                            importParams = { name: "Ed25519" };
+                            signParams = { name: "Ed25519" };
+                        } else if (jwtAlg === 'RS256') {
+                            importParams = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };
+                            signParams = { name: "RSASSA-PKCS1-v1_5" };
+                        } else if (jwtAlg === 'ES256') {
+                            importParams = { name: "ECDSA", namedCurve: "P-256" };
+                            signParams = { name: "ECDSA", hash: { name: "SHA-256" } };
+                        } else {
+                            throw new Error("Unsupported algorithm");
+                        }
+
                         // Import private key
                         const privKey = await window.crypto.subtle.importKey(
                             "pkcs8",
                             this.b642ab(this.clientKeys.private),
-                            { name: "Ed25519" },
+                            importParams,
                             false,
                             ["sign"]
                         );
 
-                        const header = { alg: "EdDSA", typ: "JWT" };
+                        const header = { alg: jwtAlg, typ: "JWT" };
+                        if (this.clientKeys.kid) {
+                            header.kid = this.clientKeys.kid;
+                        }
                         const now = Math.floor(Date.now() / 1000);
                         // Audience must be issuer url (origin)
                         let aud = this.config.token_url;
@@ -728,7 +1155,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                         const data = textEncoder.encode(encHeader + "." + encPayload);
                         const signature = await window.crypto.subtle.sign(
-                            { name: "Ed25519" },
+                            signParams,
                             privKey,
                             data
                         );
@@ -736,19 +1163,20 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         this.customAssertion = encHeader + "." + encPayload + "." + this.base64UrlEncode(new Uint8Array(signature));
                     } catch (e) {
                         console.error("Error signing JWT", e);
-                        alert("Error signing JWT: " + e.message);
+                        this.showError("Error signing JWT", e.message);
                     }
                 },
 
                 // --- Auth Flows ---
 
                 startAuthCodePkceFlow() {
-                    sessionStorage.removeItem('oauth_legacy_flow');
+                    this.resetTokens();
+                    sessionStorage.removeItem('oauth2_authcode_legacy_flow');
                     const params = new URLSearchParams({
                         response_type: 'code',
                         client_id: this.config.client_id,
                         redirect_uri: this.config.redirect_uri,
-                        scope: this.flowScopes.pkce,
+                        scope: this.flowScopes.authCode,
                         code_challenge: this.pkce.challenge,
                         code_challenge_method: 'S256',
                         state: Math.random().toString(36).substring(7)
@@ -756,19 +1184,39 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     window.location.href = `${this.config.auth_url}?${params.toString()}`;
                 },
 
+                doLogout() {
+                    const params = new URLSearchParams({
+                        id_token_hint: this.tokens.id_token,
+                        post_logout_redirect_uri: window.location.href.split('?')[0]
+                    });
+
+                    // Clear local session before redirecting to logout endpoint
+                    this.clearSession();
+
+                    if (this.config.logout_url) {
+                        const logoutUrl = new URL(this.config.logout_url);
+                        params.forEach((value, key) => {
+                            if (value) logoutUrl.searchParams.set(key, value);
+                        });
+                        window.location.href = logoutUrl.toString();
+                    }
+                },
+
                 startAuthCodeFlow() {
-                    sessionStorage.setItem('oauth_legacy_flow', 'true');
+                    this.resetTokens();
+                    sessionStorage.setItem('oauth2_authcode_legacy_flow', 'true');
                     const params = new URLSearchParams({
                         response_type: 'code',
                         client_id: this.config.client_id,
                         redirect_uri: this.config.redirect_uri,
-                        scope: this.flowScopes.pkce,
+                        scope: this.flowScopes.authCode,
                         state: Math.random().toString(36).substring(7)
                     });
                     window.location.href = `${this.config.auth_url}?${params.toString()}`;
                 },
 
                 async startDeviceCodeFlow() {
+                    this.resetTokens();
                     this.loading = true;
                     try {
                         const body = new URLSearchParams({
@@ -785,19 +1233,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         });
 
                         const data = await response.json();
-
-                        this.logs = {
-                            status: response.status,
-                            statusText: response.statusText,
-                            body: data
-                        };
-
-                        this.$nextTick(() => {
-                            this.initResponseEditor();
-                            if (this.resEditor) {
-                                this.resEditor.set(data);
-                            }
-                        });
+                        this.updateLogs(response, data);
 
                         if (response.ok) {
                             this.deviceCode = {
@@ -808,15 +1244,30 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 expires_in: data.expires_in,
                                 interval: data.interval || 5,
                                 polling: true,
-                                pollTimer: null
+                                pollTimer: null,
+                                deviceTimer: null,
+                                checking: false,
+                                error: '',
+                                input_user_code: data.user_code,
+                                approve_decision: true
                             };
                             this.startDeviceCodePolling();
+
+                            // Countdown timer
+                            this.deviceCode.deviceTimer = setInterval(() => {
+                                if (this.deviceCode.expires_in > 0) {
+                                    this.deviceCode.expires_in--;
+                                } else {
+                                    this.cancelDeviceCodePolling();
+                                }
+                            }, 1000);
                         }
                     } catch (error) {
                         this.logs = {
                             status: 0,
                             statusText: 'Network Error',
-                            body: `<span class="text-danger">${error.message}</span>`
+                            body: `<span class="text-danger">${error.message}</span>`,
+                            headers: {}
                         };
                     } finally {
                         this.loading = false;
@@ -829,6 +1280,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     }
 
                     const poll = async () => {
+                        this.deviceCode.checking = true;
                         try {
                             const body = new URLSearchParams({
                                 grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
@@ -866,87 +1318,75 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                                 }
                                 sessionStorage.setItem('oauth_tokens', JSON.stringify(this.tokens));
 
-                                this.logs = {
-                                    status: response.status,
-                                    statusText: 'Device Authorization Complete',
-                                    body: data
-                                };
-
-                                this.$nextTick(() => {
-                                    this.initResponseEditor();
-                                    if (this.resEditor) {
-                                        this.resEditor.set(data);
-                                    }
-                                });
-                            } else if (data.error === 'authorization_pending') {
+                                this.updateLogs(response, data, 'Device Authorization Complete');
+                            } else if (data.error === 'authorization_pending' || (data.error === 'invalid_grant' && data.error_description === 'authorization_pending')) {
                                 // Still waiting for user to authorize
-                                // Continue polling
                             } else if (data.error === 'slow_down') {
                                 // Server asked us to slow down
                                 this.deviceCode.interval += 5;
                                 this.cancelDeviceCodePolling();
                                 this.startDeviceCodePolling();
-                            } else if (data.error === 'expired_token') {
-                                // Device code expired
-                                this.cancelDeviceCodePolling();
-                                this.logs = {
-                                    status: response.status,
-                                    statusText: 'Device Code Expired',
-                                    body: data
-                                };
                             } else if (data.error === 'access_denied') {
-                                // User denied
-                                this.cancelDeviceCodePolling();
-                                this.logs = {
-                                    status: response.status,
-                                    statusText: 'Access Denied',
-                                    body: data
-                                };
+                                this.deviceCode.error = 'Access denied: User rejected the request.';
+                                this.deviceCode.polling = false;
+                                if (this.deviceCode.pollTimer) clearInterval(this.deviceCode.pollTimer);
+                                if (this.deviceCode.deviceTimer) clearInterval(this.deviceCode.deviceTimer);
+                                this.updateLogs(response, data);
+                            } else if (data.error === 'expired_token') {
+                                this.deviceCode.error = 'The device code has expired.';
+                                this.deviceCode.polling = false;
+                                if (this.deviceCode.pollTimer) clearInterval(this.deviceCode.pollTimer);
+                                if (this.deviceCode.deviceTimer) clearInterval(this.deviceCode.deviceTimer);
+                                this.updateLogs(response, data);
                             } else {
-                                // Other error
                                 this.cancelDeviceCodePolling();
-                                this.logs = {
-                                    status: response.status,
-                                    statusText: response.statusText,
-                                    body: data
-                                };
+                                this.updateLogs(response, data);
                             }
                         } catch (error) {
                             console.error('Polling error:', error);
+                        } finally {
+                            this.deviceCode.checking = false;
                         }
                     };
 
-                    // Initial poll
-                    poll();
-                    // Set up interval
+                    // Set up interval - waits for the first interval before polling
                     this.deviceCode.pollTimer = setInterval(poll, this.deviceCode.interval * 1000);
                 },
 
                 cancelDeviceCodePolling() {
                     if (this.deviceCode.pollTimer) {
                         clearInterval(this.deviceCode.pollTimer);
-                        this.deviceCode.pollTimer = null;
                     }
-                    this.deviceCode.polling = false;
+                    if (this.deviceCode.deviceTimer) {
+                        clearInterval(this.deviceCode.deviceTimer);
+                    }
+                    this.deviceCode = {
+                        device_code: '',
+                        user_code: '',
+                        verification_uri: '',
+                        verification_uri_complete: '',
+                        expires_in: null,
+                        interval: 5,
+                        polling: false,
+                        pollTimer: null,
+                        deviceTimer: null,
+                        checking: false,
+                        error: '',
+                        input_user_code: '',
+                        approve_decision: true
+                    };
                 },
 
                 checkRedirect() {
                     const urlParams = new URLSearchParams(window.location.search);
                     if (urlParams.has('code')) {
                         // Clear existing tokens to ensure clean state for new code exchange
-                        this.tokens = {
-                            access_token: '',
-                            refresh_token: '',
-                            id_token: '',
-                            expires_in: null,
-                            scope: '',
-                            expires_at: null
-                        };
-                        sessionStorage.removeItem('oauth_tokens');
+                        this.resetTokens();
 
+                        this.isLegacyFlow = sessionStorage.getItem('oauth2_authcode_legacy_flow') === 'true';
                         this.params.code = urlParams.get('code');
                         this.params.state = urlParams.get('state');
-                        this.activeTab = 'pkce';
+                        this.activeTab = 'authCode';
 
                         // Restore verifier
                         const savedVerifier = sessionStorage.getItem('pkce_verifier');
@@ -959,13 +1399,15 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         this.logs = {
                             status: 'Error',
                             statusText: urlParams.get('error'),
-                            body: `<span class="text-danger">${urlParams.get('error_description') || 'OAuth Error'}</span>`
+                            body: `${urlParams.get('error_description') || 'OAuth Error'}`,
+                            headers: {},
+                            contentType: ''
                         };
                     }
                 },
 
                 async exchangeCodeForToken() {
-                    const isLegacy = sessionStorage.getItem('oauth_legacy_flow') === 'true';
+                    const isLegacy = sessionStorage.getItem('oauth2_authcode_legacy_flow') === 'true';
                     const body = new URLSearchParams({
                         grant_type: 'authorization_code',
                         code: this.params.code,
@@ -985,6 +1427,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 },
 
                 async doClientCredentials() {
+                    this.resetTokens();
                     const body = new URLSearchParams({
                         grant_type: 'client_credentials',
                         scope: this.flowScopes.clientCredentials
@@ -1008,13 +1451,229 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 },
 
                 async doClientAssertion() {
+                    this.resetTokens();
                     const body = new URLSearchParams({
                         grant_type: 'client_credentials',
-                        scope: this.flowScopes.clientAssertion,
+                        scope: this.flowScopes.clientCredentials,
+                        client_id: this.config.client_id,
                         client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
                         client_assertion: this.customAssertion
                     });
                     await this.makeTokenRequest(body);
+                },
+
+                async verifyAndApproveDevice() {
+                    const userCode = this.deviceCode.input_user_code;
+                    if (!userCode) return;
+
+                    this.loading = true;
+
+                    try {
+                        // 1. Verify
+                        const verifyRes = await fetch(this.config.device_verify_url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user_code: userCode })
+                        });
+
+                        const verifyData = await verifyRes.json();
+                        this.updateLogs(verifyRes, verifyData, verifyRes.ok ? 'Device Verified' : 'Verification Failed');
+
+                        if (!verifyRes.ok) {
+                            this.showError('Verification Failed', verifyData.message || verifyData.error);
+                            return;
+                        }
+
+                        // 2. Approve
+                        if (!this.tokens.access_token) {
+                            this.showError('Authentication Required', 'You must be logged in (have an access token) to approve/deny.');
+                            return;
+                        }
+
+                        const approveRes = await fetch(this.config.device_approve_url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${this.tokens.access_token}`
+                            },
+                            body: JSON.stringify({
+                                user_code: userCode,
+                                approved: this.deviceCode.approve_decision
+                            })
+                        });
+
+                        const approveData = await approveRes.json();
+                        this.updateLogs(approveRes, approveData, approveRes.ok ? 'Device/User Code Processed' : 'Approval Failed');
+
+                        if (approveRes.ok) {
+                            // Clear input if successful
+                            if (this.deviceCode.input_user_code === this.deviceCode.user_code) {
+                                // We approved the current flow, polling should pick it up shortly
+                            }
+                            this.showSuccess('Success', 'Device request processed successfully.');
+                        } else {
+                            this.showError('Approval Failed', approveData.message || approveData.error);
+                        }
+
+                    } catch (e) {
+                        this.showError("Error", e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async introspectToken(token, typeHint) {
+                    this.loading = true;
+                    try {
+                        const body = new URLSearchParams({
+                            token: token,
+                            token_type_hint: typeHint
+                        });
+
+                        const headers = {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        };
+
+                        // Use Basic Auth for client identification as per RFC 7662 for confidential clients
+                        if (this.config.client_id) {
+                            const creds = btoa(`${this.config.client_id}:${this.config.client_secret || ''}`);
+                            headers['Authorization'] = `Basic ${creds}`;
+                        }
+
+                        const response = await fetch(this.config.token_introspection_url, {
+                            method: 'POST',
+                            headers: headers,
+                            body: body
+                        });
+
+                        const data = await response.json();
+                        this.updateLogs(response, data, response.ok ? 'Token Introspection' : 'Introspection Failed');
+
+                    } catch (e) {
+                        this.showError("Introspection Error", e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async revokeToken(token, typeHint) {
+                    if (!confirm('Are you sure you want to revoke this token?')) return;
+                    this.loading = true;
+                    try {
+                        // Backend expects specific body params for revocation
+                        const body = new URLSearchParams({
+                            client_id: this.config.client_id,
+                            refresh_token: token
+                        });
+
+                        if (this.config.client_secret) {
+                            body.append('client_secret', this.config.client_secret);
+                        }
+
+                        const response = await fetch(this.config.revocation_url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: body
+                        });
+
+                        if (response.status === 204 || response.ok) {
+                            this.showSuccess("Revoked", "Token revoked successfully.");
+                            // Clear refresh token from session as it is now invalid
+                            this.tokens.refresh_token = '';
+                            sessionStorage.setItem('oauth_tokens', JSON.stringify(this.tokens));
+
+                            this.updateLogs(response, {}, 'Token Revoked');
+                        } else {
+                            const data = await response.text();
+                            this.updateLogs(response, data, 'Revocation Failed');
+                        }
+                    } catch (e) {
+                        this.showError("Revocation Error", e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async verifyIdToken(token) {
+                    if (!token) return;
+                    this.loading = true;
+                    try {
+                        // 1. Parse Header
+                        const parts = token.split('.');
+                        if (parts.length !== 3) throw new Error("Invalid JWT format");
+
+                        const header = JSON.parse(atob(parts[0]));
+                        const kid = header.kid;
+                        const alg = header.alg;
+
+                        if (!kid) throw new Error("ID Token header missing 'kid'");
+
+                        // 2. Fetch JWKS
+                        const jwksRes = await fetch(this.config.jwks_url);
+                        if (!jwksRes.ok) throw new Error("Failed to fetch JWKS");
+                        const jwks = await jwksRes.json();
+
+                        // 3. Find Key
+                        const key = jwks.keys.find(k => k.kid === kid);
+                        if (!key) throw new Error(`Key not found in JWKS (kid: ${kid})`);
+
+                        // 4. Import Key & Verify
+                        // 4. Import Key & Verify
+                        let importAlgo;
+                        let verifyAlgo;
+
+                        if (alg === 'RS256') {
+                            importAlgo = { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' };
+                            verifyAlgo = { name: 'RSASSA-PKCS1-v1_5' };
+                        } else if (alg === 'ES256') {
+                            importAlgo = { name: 'ECDSA', namedCurve: 'P-256' };
+                            verifyAlgo = { name: 'ECDSA', hash: { name: 'SHA-256' } };
+                        } else if (alg === 'EdDSA') {
+                            // Map JWK "EdDSA" to Web Crypto "Ed25519"
+                            importAlgo = { name: 'Ed25519' };
+                            verifyAlgo = { name: 'Ed25519' };
+                        } else {
+                            throw new Error(`Unsupported algorithm: ${alg}`);
+                        }
+
+                        console.log("Importing key with params:", { key, importAlgo });
+
+                        const cryptoKey = await window.crypto.subtle.importKey(
+                            "jwk",
+                            key,
+                            importAlgo,
+                            false,
+                            ["verify"]
+                        );
+
+                        const textEncoder = new TextEncoder();
+                        const data = textEncoder.encode(parts[0] + "." + parts[1]);
+                        const signature = this.b642ab(parts[2].replace(/-/g, '+').replace(/_/g, '/'));
+
+                        const valid = await window.crypto.subtle.verify(
+                            verifyAlgo,
+                            cryptoKey,
+                            signature,
+                            data
+                        );
+
+                        // Small delay to show loader (UX)
+                        await new Promise(r => setTimeout(r, 500));
+
+                        if (valid) {
+                            this.showSuccess("Signature Verified", "ID Token signature is valid and matches JWKS key.");
+                        } else {
+                            this.showError("Verification Failed", "ID Token signature is INVALID.");
+                        }
+
+                    } catch (e) {
+                        this.showError("Verification Error", e.message);
+                        console.error(e);
+                    } finally {
+                        this.loading = false;
+                    }
                 },
 
                 addClientAuth(params) {
@@ -1036,19 +1695,7 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         });
 
                         const data = await response.json();
-
-                        this.logs = {
-                            status: response.status,
-                            statusText: response.statusText,
-                            body: data
-                        };
-
-                        this.$nextTick(() => {
-                            this.initResponseEditor();
-                            if (this.resEditor) {
-                                this.resEditor.set(data);
-                            }
-                        });
+                        this.updateLogs(response, data);
 
                         if (response.ok) {
                             const newTokens = { ...this.tokens, ...data };
@@ -1070,7 +1717,9 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         this.logs = {
                             status: 0,
                             statusText: 'Network Error',
-                            body: `<span class="text-danger">${error.message}. Check CORS settings on server.</span>`
+                            body: `${error.message}. Check CORS settings on server.`,
+                            headers: {},
+                            contentType: ''
                         };
                     } finally {
                         this.loading = false;
@@ -1078,6 +1727,14 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                 },
 
                 // --- API Testing ---
+                addApiHeader() {
+                    this.api.headers.push({ key: '', value: '' });
+                },
+
+                removeApiHeader(index) {
+                    this.api.headers.splice(index, 1);
+                },
+
                 async sendApiRequest() {
                     this.loading = true;
                     this.logs = null;
@@ -1090,12 +1747,19 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         }
                     };
 
-                    if (this.api.method !== 'GET' && this.api.method !== 'DELETE') {
+                    // Add custom headers
+                    this.api.headers.forEach(h => {
+                        if (h.key.trim()) {
+                            options.headers[h.key.trim()] = h.value;
+                        }
+                    });
+
+                    if (this.api.method !== 'GET' && this.api.method !== 'HEAD') {
                         try {
                             const body = this.reqEditor ? JSON.stringify(this.reqEditor.get()) : this.api.body;
                             options.body = body;
                         } catch (e) {
-                            alert("Invalid JSON in request body");
+                            this.showError("Invalid JSON", "Request body is not valid JSON.");
                             this.loading = false;
                             return;
                         }
@@ -1104,39 +1768,29 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                     try {
                         const response = await fetch(this.api.url, options);
 
+                        const contentType = response.headers.get("content-type") || '';
                         let data;
-                        const contentType = response.headers.get("content-type");
-                        if (contentType && contentType.indexOf("application/json") !== -1) {
+                        if (this.api.method === "HEAD" || response.status === 204) {
+                            data = "";
+                        } else if (contentType.indexOf("application/json") !== -1) {
                             data = await response.json();
                         } else {
                             data = await response.text();
                         }
 
-                        this.logs = {
-                            status: response.status,
-                            statusText: response.statusText,
-                            body: data
-                        };
-
-                        this.$nextTick(() => {
-                            this.initResponseEditor();
-                            if (this.resEditor) {
-                                try {
-                                    this.resEditor.set(typeof data === 'string' ? JSON.parse(data) : data);
-                                } catch (e) {
-                                    this.resEditor.setText(data);
-                                }
-                            }
-                        });
+                        this.updateLogs(response, data);
                     } catch (error) {
                         this.logs = {
+                            url: this.api.url,
                             status: 0,
                             statusText: 'Request Failed',
-                            body: error.message
+                            body: error.message,
+                            headers: {}
                         };
                         this.$nextTick(() => {
                             this.initResponseEditor();
                             if (this.resEditor) this.resEditor.setText(error.message);
+                            if (this.headersEditor) this.headersEditor.set({});
                         });
                     } finally {
                         this.loading = false;
@@ -1149,6 +1803,15 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         this.resEditor = new JSONEditor(container, {
                             mode: 'code',
                             mainMenuBar: true
+                        });
+                    }
+
+                    const hContainer = document.getElementById('headersEditor');
+                    if (hContainer && !this.headersEditor) {
+                        this.headersEditor = new JSONEditor(hContainer, {
+                            mode: 'code',
+                            mainMenuBar: false,
+                            onEditable: () => false
                         });
                     }
                 },
@@ -1231,48 +1894,48 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
 
                 clearLogs() {
                     this.logs = null;
-                    if (this.resEditor) {
-                        this.resEditor.set({});
-                    }
+                    this.resTab = 'body';
+                    if (this.resEditor) this.resEditor.set({});
+                    if (this.headersEditor) this.headersEditor.set({});
                 },
 
-                // --- Utilities ---
-                syntaxHighlight(json) {
-                    if (typeof json != 'string') {
-                        json = JSON.stringify(json, undefined, 2);
-                    }
-                    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-                        var cls = 'json-number';
-                        if (/^"/.test(match)) {
-                            if (/:$/.test(match)) {
-                                cls = 'json-key';
+                updateLogs(response, data, statusTextOverride) {
+                    const contentType = response.headers.get("content-type") || '';
+                    this.logs = {
+                        url: response.url,
+                        status: response.status,
+                        statusText: statusTextOverride || response.statusText || 'OK',
+                        contentType: contentType,
+                        body: data,
+                        headers: this.formatHeaders(response.headers)
+                    };
+
+                    this.$nextTick(() => {
+                        this.initResponseEditor();
+                        if (this.resEditor) {
+                            if (contentType.toLowerCase().includes('json')) {
+                                try {
+                                    this.resEditor.set(typeof data === 'string' ? JSON.parse(data) : data);
+                                } catch (e) {
+                                    this.resEditor.setText(data);
+                                }
                             } else {
-                                cls = 'json-string';
+                                this.resEditor.setText(''); // Clear if not JSON
                             }
-                        } else if (/true|false/.test(match)) {
-                            cls = 'json-boolean'; // using default text color or specific if needed
-                        } else if (/null/.test(match)) {
-                            cls = 'text-muted';
                         }
-                        return '<span class="' + cls + '">' + match + '</span>';
+                        if (this.headersEditor) this.headersEditor.set(this.logs.headers);
                     });
                 },
 
-                prettyJwt(token) {
-                    if (!token || !token.includes('.')) return '';
-                    try {
-                        const base64Url = token.split('.')[1];
-                        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-                            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                        }).join(''));
-                        return this.syntaxHighlight(JSON.parse(jsonPayload));
-                    } catch (e) {
-                        return '<span class="text-danger">Invalid JWT</span>';
-                    }
+                formatHeaders(headers) {
+                    const h = {};
+                    headers.forEach((v, k) => {
+                        h[k] = v;
+                    });
+                    return h;
                 },
 
+                // --- Utilities ---
                 copyToClipboard(text) {
                     // Fallback for iframe environments where navigator.clipboard is blocked
                     if (!navigator.clipboard) {
@@ -1289,9 +1952,39 @@ It uses bootstrap css for styling, alpine.js for client side logic, reactive sta
                         document.body.removeChild(textArea);
                         return;
                     }
-                    navigator.clipboard.writeText(text).catch(err => {
-                        console.error('Async: Could not copy text: ', err);
-                    });
+                    navigator.clipboard.writeText(text)
+                        .then(() => this.showSuccess("Copied", "Text copied to clipboard."))
+                        .catch(err => {
+                            console.error('Async: Could not copy text: ', err);
+                            this.showError("Copy Failed", "Could not copy text to clipboard.");
+                        });
+                },
+
+                // --- Notification Helpers ---
+                showToast(title, message) {
+                    const id = Date.now();
+                    this.toasts.push({ id, title, message });
+                    // Auto remove after 5s
+                    setTimeout(() => {
+                        this.removeToast(id);
+                    }, 5000);
+                },
+
+                showSuccess(title, message) {
+                    this.showToast(title, message);
+                },
+
+                showError(title, message) {
+                    const id = Date.now();
+                    this.errors.push({ id, title, message });
+                },
+
+                removeToast(id) {
+                    this.toasts = this.toasts.filter(t => t.id !== id);
+                },
+
+                removeError(id) {
+                    this.errors = this.errors.filter(e => e.id !== id);
                 }
             }
         }
